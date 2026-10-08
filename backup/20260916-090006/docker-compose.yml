@@ -1,0 +1,12 @@
+services:
+  meshlab-rf:
+    build: .
+    image: meshlab-rf
+    container_name: meshlab-rf
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # QUIET: "1"    # pas de journal des requetes
+      # CSP: "off"    # desactive l'en-tete Content-Security-Policy
+      TZ: Europe/Paris

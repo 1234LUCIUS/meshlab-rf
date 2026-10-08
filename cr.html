@@ -1,0 +1,757 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compte rendu MeshLab RF</title>
+<meta name="description" content="Analyse de cohérence du simulateur Meshtastic / MeshCore, corrections apportées et explication de l'ACK.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+:root{
+  --paper:#F5F8F7;
+  --panel:#EAF0EF;
+  --ink:#16201F;
+  --muted:#586664;
+  --rule:#D3DCDA;
+  --accent:#0A6F80;
+  --accent-soft:#DDEFF1;
+  --ok:#23734A;
+  --warn:#8F5B0E;
+  --bad:#A9313D;
+  --ok-soft:#E0F1E7;
+  --warn-soft:#F6EBD8;
+  --bad-soft:#F6E1E3;
+  --sans:'IBM Plex Sans Condensed','Arial Narrow','Helvetica Neue',Arial,sans-serif;
+  --serif:'Source Serif 4',Georgia,'Times New Roman',serif;
+  --mono:'IBM Plex Mono',ui-monospace,'Cascadia Mono',Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1517; --panel:#152024; --ink:#E2EBEA; --muted:#92A3A1; --rule:#263439;
+    --accent:#58C5DC; --accent-soft:#143039; --ok:#55C98E; --warn:#E4A94F; --bad:#EE707A;
+    --ok-soft:#12291E; --warn-soft:#2E2412; --bad-soft:#2F171B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1517; --panel:#152024; --ink:#E2EBEA; --muted:#92A3A1; --rule:#263439;
+  --accent:#58C5DC; --accent-soft:#143039; --ok:#55C98E; --warn:#E4A94F; --bad:#EE707A;
+  --ok-soft:#12291E; --warn-soft:#2E2412; --bad-soft:#2F171B;
+}
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+@media (prefers-reduced-motion: no-preference){ html{scroll-behavior:smooth;} }
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.62;padding-block:56px 96px;padding-inline:20px;}
+table{font-size:inherit;color:inherit;}
+a{color:var(--accent);text-underline-offset:3px;}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px;}
+code,.mono{font-family:var(--mono);font-size:.84em;}
+code{background:var(--panel);padding:.08em .35em;border-radius:3px;}
+
+.wrap{display:grid;grid-template-columns:minmax(0,700px);justify-content:center;gap:56px;}
+@media (min-width:1060px){ .wrap{grid-template-columns:190px minmax(0,700px);} }
+
+nav.toc{font-family:var(--sans);font-size:15px;}
+@media (min-width:1060px){ nav.toc{position:sticky;top:40px;align-self:start;} }
+nav.toc p{margin:0 0 10px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+nav.toc ol{list-style:none;margin:0;padding:0;display:grid;gap:6px;}
+nav.toc a{color:var(--ink);text-decoration:none;display:grid;grid-template-columns:26px 1fr;}
+nav.toc a span{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:2px;}
+nav.toc a:hover{color:var(--accent);}
+@media (max-width:1059px){
+  nav.toc{border-block:1px solid var(--rule);padding-block:14px;}
+  nav.toc ol{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));}
+}
+
+header .eyebrow{font-family:var(--mono);font-size:13px;color:var(--muted);letter-spacing:.02em;margin:0 0 14px;}
+h1,h2,h3{font-family:var(--sans);text-wrap:balance;line-height:1.15;}
+h1{font-size:clamp(34px,5.4vw,50px);font-weight:700;letter-spacing:-.01em;margin:0 0 18px;}
+.lede{font-size:20px;line-height:1.55;max-width:62ch;margin:0 0 26px;}
+.meta{display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;margin:0;font-size:15px;border-top:1px solid var(--rule);padding-top:16px;}
+.meta dt{font-family:var(--sans);font-weight:600;color:var(--muted);font-size:14px;letter-spacing:.02em;}
+.meta dd{margin:0;overflow-wrap:anywhere;}
+
+main{display:grid;gap:64px;min-width:0;}
+section{min-width:0;}
+h2{font-size:30px;font-weight:600;margin:0 0 18px;display:flex;align-items:baseline;gap:14px;}
+h2 .n{font-family:var(--mono);font-size:15px;font-weight:500;color:var(--accent);}
+h3{font-size:21px;font-weight:600;margin:34px 0 10px;}
+p{margin:0 0 16px;max-width:66ch;}
+ul,ol.steps{margin:0 0 16px;padding-left:1.25em;max-width:66ch;}
+li{margin-bottom:7px;}
+li::marker{color:var(--muted);}
+strong{font-weight:600;}
+
+.summary{display:grid;gap:0;border-top:2px solid var(--ink);}
+.summary div{display:grid;grid-template-columns:170px 1fr;gap:18px;padding-block:14px;border-bottom:1px solid var(--rule);}
+.summary dt{font-family:var(--sans);font-weight:600;font-size:16px;}
+.summary dd{margin:0;}
+@media (max-width:560px){ .summary div{grid-template-columns:1fr;gap:4px;} }
+
+.table-wrap{overflow-x:auto;margin:6px 0 18px;}
+table.grid{border-collapse:collapse;width:100%;min-width:560px;font-size:15.5px;line-height:1.5;}
+table.grid th{font-family:var(--sans);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 12px 8px 0;border-bottom:2px solid var(--ink);}
+table.grid td{padding:11px 12px 11px 0;border-bottom:1px solid var(--rule);vertical-align:top;}
+table.grid td:first-child{font-weight:600;}
+table.grid td.num,table.grid td.mono{font-family:var(--mono);font-size:14px;font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap;}
+table.grid td.src{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-weight:400;}
+
+.sev{display:inline-block;font-family:var(--sans);font-size:12.5px;font-weight:600;letter-spacing:.03em;padding:1px 8px;border-radius:999px;white-space:nowrap;}
+.sev.maj{background:var(--bad-soft);color:var(--bad);}
+.sev.moy{background:var(--warn-soft);color:var(--warn);}
+.sev.min{background:var(--panel);color:var(--muted);}
+.swatch{display:inline-block;width:22px;height:4px;border-radius:2px;vertical-align:middle;margin-right:7px;}
+.sw-ok{background:#3ecf8e;} .sw-mid{background:#f0a742;} .sw-no{background:#e5555f;}
+
+.note{background:var(--panel);padding:16px 20px;margin:20px 0;border-radius:4px;max-width:66ch;}
+.note p:last-child{margin-bottom:0;}
+.note .label{font-family:var(--sans);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:4px;}
+
+.define{font-size:21px;line-height:1.5;border-left:3px solid var(--accent);padding:4px 0 4px 20px;margin:0 0 24px;max-width:60ch;}
+.define b{font-family:var(--sans);font-weight:700;}
+
+figure{margin:26px 0 22px;}
+.figure-scroll{overflow-x:auto;background:var(--panel);border-radius:4px;padding:18px 14px 10px;}
+figure svg{display:block;width:100%;min-width:560px;height:auto;}
+figcaption{font-size:14.5px;color:var(--muted);margin-top:10px;max-width:66ch;}
+.lane{fill:var(--ink);font-family:var(--sans);font-size:13px;font-weight:600;}
+.panel-title{fill:var(--muted);font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;}
+.lifeline{stroke:var(--rule);stroke-width:1.5;stroke-dasharray:3 4;}
+.wait{stroke:var(--warn);stroke-width:3;opacity:.55;}
+.msg{stroke:var(--accent);stroke-width:1.8;fill:none;}
+.ack{stroke:var(--ok);stroke-width:1.8;fill:none;}
+.lbl{font-family:var(--mono);font-size:11.5px;}
+.lbl-msg{fill:var(--accent);} .lbl-ack{fill:var(--ok);} .lbl-bad{fill:var(--bad);} .lbl-warn{fill:var(--warn);} .lbl-ok{fill:var(--ok);}
+.cross{stroke:var(--bad);stroke-width:2.4;}
+.m-msg{fill:var(--accent);} .m-ack{fill:var(--ok);}
+.dot{fill:var(--ink);}
+
+.proscons{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:28px;margin:10px 0 20px;}
+.proscons h4{font-family:var(--sans);font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:0 0 8px;}
+.proscons .pro h4{color:var(--ok);} .proscons .con h4{color:var(--bad);}
+.proscons ul{margin:0;}
+
+.files{list-style:none;padding:0;display:grid;gap:0;border-top:1px solid var(--rule);}
+.files li{display:grid;grid-template-columns:150px 1fr;gap:16px;padding-block:9px;border-bottom:1px solid var(--rule);margin:0;}
+.files code{background:none;padding:0;font-size:14px;}
+.cmd{background:var(--panel);border-left:3px solid var(--accent);border-radius:3px;padding:12px 16px;margin:14px 0;font-family:var(--mono);font-size:14px;overflow-x:auto;}
+@media (max-width:560px){ .files li{grid-template-columns:1fr;gap:2px;} }
+
+ul.legend{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:8px 22px;font-family:var(--sans);font-size:15px;margin:4px 0 18px;}
+ul.legend li{margin:0;display:flex;align-items:center;gap:8px;}
+i.k{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--panel);}
+i.k.ok{box-shadow:0 0 0 2.5px var(--ok);}
+i.k.relay{box-shadow:0 0 0 2.5px var(--warn);}
+i.k.lost{box-shadow:0 0 0 2.5px var(--bad);}
+i.k.none{background:var(--rule);opacity:.6;}
+i.k.origin{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--ink);}
+footer{font-size:14px;color:var(--muted);border-top:1px solid var(--rule);padding-top:16px;}
+footer p{max-width:none;}
+</style>
+
+<div class="wrap">
+  <nav class="toc" aria-label="Sommaire">
+    <p>Sommaire</p>
+    <ol>
+      <li><a href="#bref"><span>1</span>En bref</a></li>
+      <li><a href="#geo"><span>2</span>Données géographiques</a></li>
+      <li><a href="#paquets"><span>3</span>Trop de paquets simultanés</a></li>
+      <li><a href="#incoherences"><span>4</span>Autres incohérences</a></li>
+      <li><a href="#fonctions"><span>5</span>Nouvelles fonctions</a></li>
+      <li><a href="#constantes"><span>6</span>Constantes des firmwares</a></li>
+      <li><a href="#verif"><span>7</span>Vérifications</a></li>
+      <li><a href="#limites"><span>8</span>Limites connues</a></li>
+      <li><a href="#ack"><span>9</span>L'ACK et les renvois</a></li>
+      <li><a href="#lecture"><span>10</span>Lire la simulation</a></li>
+      <li><a href="#heberger"><span>11</span>Mettre en ligne</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header>
+      <p class="eyebrow">Compte rendu technique · 16 septembre 2026</p>
+      <h1>Compte rendu MeshLab RF</h1>
+      <p class="lede">Reprise du simulateur Meshtastic / MeshCore : vérification de la cohérence du modèle, correction de l'excès de paquets simultanés, prise en compte du terrain réel avec le relief de l'IGN, envoi manuel de paquets, hauteur d'antenne par nœud, renvois sur absence d'accusé de réception, détail de qui reçoit chaque paquet, qualité des liaisons en couleurs, et serveur web pour la mise en ligne.</p>
+      <dl class="meta">
+        <dt>Dossier</dt><dd><code>C:\Users\arnau\Claude\Projects\meshlab-rf\</code></dd>
+        <dt>Application</dt><dd><code>index.html</code> · <code>geo.js</code> · <code>engine.js</code> · <code>app.js</code></dd>
+        <dt>Mise en ligne</dt><dd><code>server.js</code> · <code>package.json</code> · <code>Dockerfile</code> · <code>docker-compose.yml</code> · <code>README.md</code></dd>
+        <dt>Originaux</dt><dd>Copie intacte dans <code>original/</code> ; les fichiers de Téléchargements n'ont pas été modifiés.</dd>
+      </dl>
+    </header>
+
+    <section id="bref">
+      <h2><span class="n">§1</span>En bref</h2>
+      <dl class="summary">
+        <div><dt>Terrain</dt><dd>Le relief était inventé (bruit aléatoire). Chaque liaison utilise maintenant l'altitude réelle — le RGE ALTI de l'IGN en France, un modèle de <em>terrain nu</em> à 10 m près, le SRTM ailleurs — les forêts et zones bâties d'OpenStreetMap, et la courbure de la Terre.</dd></div>
+        <div><dt>Paquets simultanés</dt><dd>Cinq causes identifiées et corrigées. Sur 40 nœuds pendant une heure, on observe au plus 3 émissions en même temps.</dd></div>
+        <div><dt>Envoi manuel</dt><dd>Mode activable : un clic sur un nœud lui fait émettre un paquet, que l'inspecteur suit jusqu'à sa livraison.</dd></div>
+        <div><dt>Antenne</dt><dd>Hauteur, puissance, gain et rôle réglables pour chaque nœud ; les liaisons sont recalculées aussitôt.</dd></div>
+        <div><dt>ACK</dt><dd>Renvoi automatique d'un message quand l'accusé de réception n'arrive pas, en option activée par défaut. Mesuré sur 60 nœuds : 96 % de messages livrés contre 82 % sans, pour 5 % d'émissions en plus.</dd></div>
+        <div><dt>Réceptions</dt><dd>Pour chaque paquet, on voit quels nœuds l'ont reçu, de qui, en combien de relais, lesquels l'ont perdu et pourquoi, et lesquels ne l'ont jamais reçu : sur la carte, dans le journal et dans le panneau de droite.</dd></div>
+        <div><dt>Qualité des liaisons</dt><dd>Chaque liaison est tracée sur la carte en vert, orange ou rouge selon sa marge. L'onglet « Liaisons » en donne le bilan chiffré, dans les deux sens, avec la cause dominante quand ça ne passe pas.</dd></div>
+        <div><dt>Calculs</dt><dd>Audit automatique des compteurs : le moteur est cohérent. Deux compteurs de l'affichage prêtaient à confusion et ont été corrigés.</dd></div>
+        <div><dt>Noms des nœuds</dt><dd>Chaque nœud prend le nom de la commune la plus proche, précédé d'une lettre de rôle : <code>R-ANDE</code>, <code>N-ANDE</code>, <code>C-ANDE</code>. Le tableau des liaisons se lit alors sans avoir à retrouver qui est qui.</dd></div>
+        <div><dt>Végétation et bâti</dt><dd>Ne viennent plus d'OpenStreetMap en France, mais de la BD TOPO de l'IGN : service sans quota, données plus complètes, quelques secondes de chargement au lieu d'attentes et d'échecs. OpenStreetMap reste utilisé ailleurs et en secours.</dd></div>
+        <div><dt>Sauvegarde</dt><dd>Les nœuds placés et les réglages sont gardés par le navigateur et reviennent seuls à la réouverture. Plusieurs réseaux peuvent être nommés et rechargés, et exportés en fichier pour passer d'une machine à l'autre.</dd></div>
+        <div><dt>Second écran</dt><dd>Le panneau du bas — journal et tableau des liaisons — s'ouvre dans une fenêtre séparée, à poser sur un second écran ; il continue de suivre la simulation en direct.</dd></div>
+        <div><dt>Mise en ligne</dt><dd>Serveur web sans aucune dépendance, image Docker et mode d'emploi fournis (§11).</dd></div>
+        <div><dt>Moteur</dt><dd>Réécrit à événements discrets (précision à la milliseconde), avec les constantes relevées dans le code source des deux firmwares.</dd></div>
+      </dl>
+    </section>
+
+    <section id="geo">
+      <h2><span class="n">§2</span>Données géographiques</h2>
+      <p>La question posée était : le relief réel, la végétation et le reste sont-ils pris en compte ? <strong>Dans la version d'origine, non.</strong> Le module de terrain générait un relief procédural sans lien avec la carte, et il n'existait ni végétation, ni bâti, ni courbure terrestre. Un obstacle coupait la liaison avec une pénalité fixe de 25 dB.</p>
+      <h3>Ce qui est pris en compte désormais</h3>
+      <ul>
+        <li><strong>Altitude réelle</strong> : le RGE ALTI de l'IGN en France (~10 m par pixel), le SRTM ailleurs (~27 m), téléchargés automatiquement pour la zone des nœuds.</li>
+        <li><strong>Forêts et zones bâties</strong> : OpenStreetMap, rastérisé en maille de 10 m environ, affichable en calque sur la carte. Hauteurs réglables : arbres 15 m, bâti 10 m par défaut.</li>
+        <li><strong>Obstacles du relief</strong> : sur le profil réel entre les deux antennes, la plus forte de deux estimations — diffraction de Deygout sur 3 arêtes pour les crêtes fines, obstacle équivalent de Bullington avec correction d'obstacle arrondi pour les plateaux et les collines larges (ITU-R P.526).</li>
+        <li><strong>Courbure terrestre</strong> : facteur k réglable (4/3 par défaut, atmosphère standard).</li>
+        <li><strong>Réflexion au sol</strong> : modèle terre plane à deux rayons, déterminant pour les antennes basses. On retient la plus forte des deux pertes, diffraction ou réflexion, pour ne pas compter l'effet du sol deux fois.</li>
+        <li><strong>Antenne au milieu des arbres ou des immeubles</strong> : perte au pied de l'antenne selon l'ITU-R P.2108, nulle dès que l'antenne dépasse la hauteur du clutter.</li>
+        <li><strong>Traversée de végétation</strong> : atténuation saturante selon l'ITU-R P.833.</li>
+      </ul>
+      <h3>D'où vient l'altitude</h3>
+      <p>Le choix de la source est automatique et se fait sur la zone couverte par les nœuds.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th></th><th>IGN RGE ALTI®</th><th>SRTM (AWS Terrain Tiles)</th></tr></thead>
+          <tbody>
+            <tr><td>Employé</td><td>France et DOM, par défaut</td><td>partout ailleurs</td></tr>
+            <tr><td>Nature</td><td>modèle de <strong>terrain</strong> : le sol nu</td><td>modèle de <strong>surface</strong> : voit en partie la canopée et les toits</td></tr>
+            <tr><td>Résolution</td><td class="num">~10 m par pixel</td><td class="num">~27 m par pixel</td></tr>
+            <tr><td>Format</td><td>tuiles WMTS BIL 32 bits, <code>data.geopf.fr</code></td><td>tuiles PNG « Terrarium », <code>s3.amazonaws.com</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Le retour au SRTM se fait sans intervention dans quatre cas : hors de France, zone de plus d'une cinquantaine de kilomètres, bord de mer ou frontière où les tuiles IGN sont vides, et panne du service. Le sélecteur de la section « Terrain » permet aussi d'imposer le SRTM partout.</p>
+      <p>La différence n'est pas cosmétique. Sur une liaison de 12,5 km entre Muids et Gaillon, deux répéteurs à 15 m :</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Relief employé</th><th>Sol sous l'antenne de Muids</th><th>Perte des obstacles</th><th>Ligne de visée</th><th>Perte totale</th></tr></thead>
+          <tbody>
+            <tr><td>SRTM</td><td class="num">137 m</td><td class="num">4,0 dB</td><td>dégagée</td><td class="num">118,7 dB</td></tr>
+            <tr><td>IGN RGE ALTI</td><td class="num">127 m</td><td class="num">21,6 dB</td><td>obstruée</td><td class="num">143,0 dB</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Les 10 m d'écart sur le sol sont la canopée que le radar du SRTM prend pour le terrain. Ils suffisaient à dégager la ligne de visée et faisaient gagner <strong>24 dB</strong> à la liaison : c'est la principale source d'optimisme du modèle, supprimée en France.</p>
+
+      <h3>Comment la hauteur d'antenne entre dans le calcul</h3>
+      <p>L'antenne est posée sur le <strong>sol</strong> du modèle de relief, et la hauteur saisie s'y ajoute. Ni les arbres ni les bâtiments ne sont empilés sous l'antenne : ils sont comptés séparément, et une seule fois.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Ce que la hauteur change</th><th>Comment</th></tr></thead>
+          <tbody>
+            <tr><td>Altitude de l'antenne</td><td>altitude du sol nu + hauteur saisie + renflement terrestre</td></tr>
+            <tr><td>Diffraction du relief</td><td>les crêtes du profil sont réévaluées avec les nouvelles altitudes d'antenne</td></tr>
+            <tr><td>Réflexion au sol</td><td>hauteur effective au-dessus du relief <em>moyen</em> du trajet : une antenne de 2 m sur une butte de 40 m profite des 40 m</td></tr>
+            <tr><td>Dégagement de Fresnel</td><td>mesuré contre un second profil, arbres et bâti compris</td></tr>
+            <tr><td>Clutter au pied de l'antenne</td><td>perte ITU-R P.2108, <strong>nulle</strong> dès que l'antenne dépasse le couvert local (15 m en forêt, 10 m en zone bâtie)</td></tr>
+            <tr><td>Perte en espace libre</td><td>inchangée : elle ne dépend que de la distance</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Le couvert n'est ajouté au profil qu'au-delà de 100 m de chaque extrémité : la forêt du pied du mât n'est donc jamais traitée comme un obstacle à franchir, elle relève de la perte P.2108. Changer la hauteur d'un nœud ne recalcule que les liaisons qui le concernent.</p>
+
+      <h3>Les obstacles larges : plateaux et collines</h3>
+      <p>La première version ne modélisait les obstacles qu'en « lames de couteau » : des arêtes infiniment fines. Or un plateau de 800 m de large atténue bien davantage qu'une crête. Signalé sur le terrain — deux nœuds séparés par le plateau entre Muids et Gaillon communiquaient dans la simulation alors que c'est impossible en réalité — ce défaut a été corrigé en ajoutant l'obstacle équivalent de <strong>Bullington</strong>, complété par la correction d'obstacle arrondi <em>T(m, n)</em> de l'ITU-R P.526 § 4.2, dont le rayon est estimé à partir de la largeur réelle de l'obstacle et de l'angle de diffraction. Des deux estimations, Deygout et Bullington, c'est la plus forte qui est retenue.</p>
+      <p>Résultat sur le cas signalé : sur 125 positions testées de part et d'autre du plateau, 31 autorisaient une liaison directe avant correction, <strong>aucune</strong> après, l'obstacle pesant désormais 74 dB.</p>
+
+      <h3>Quand les données manquent</h3>
+      <p>Le relief se charge de façon fiable : 76 tuiles demandées sur une zone de test, aucun échec. Ce sont les serveurs Overpass, qui fournissent forêts et bâti, qui sont saturés de façon irrégulière — l'un d'eux répondait 504 au bout de 10 s pendant qu'un autre répondait en 2 s.</p>
+      <ul>
+        <li>Les trois serveurs Overpass sont désormais <strong>interrogés en parallèle</strong>, à 8 s d'écart ; le premier qui répond gagne, et celui qui gagne est mémorisé pour les fois suivantes.</li>
+        <li>En cas d'échec complet, nouvelle tentative automatique de plus en plus espacée, de 30 s à 5 min, et immédiate si les nœuds sont déplacés ailleurs.</li>
+        <li>Une tuile de relief en échec est retentée au bout de 30 s.</li>
+        <li>Une carte d'avertissement « Données géographiques incomplètes » s'affiche sur la carte et détaille ce qui manque, car les portées affichées sont alors trop optimistes.</li>
+      </ul>
+
+      <div class="note">
+        <span class="label">Profil IGN à la demande</span>
+        <p>Dans le bilan de liaison (Maj + clic sur deux nœuds), le bouton « Profil haute précision IGN 1 m » interroge l'API altimétrique de l'IGN sur 200 points et compare la perte obtenue à celle calculée par les tuiles. Cette comparaison ne modifie pas les liaisons simulées.</p>
+      </div>
+      <p>Exemple relevé dans les Vosges : un client posé en forêt avec une antenne à 2 m subit 22,1 dB de perte au pied de l'antenne. Pour deux clients forestiers distants de 2 à 3 km, la perte totale atteint 160 dB : la liaison ne passe pas, ce qui correspond à l'expérience terrain à 868 MHz.</p>
+    </section>
+
+    <section id="paquets">
+      <h2><span class="n">§3</span>Trop de paquets simultanés</h2>
+      <p>L'impression d'un trop grand nombre de paquets envoyés en même temps était fondée. Elle venait de cinq causes cumulées.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Cause</th><th>Effet observé</th><th>Correction</th></tr></thead>
+          <tbody>
+            <tr><td>Trafic 10 à 100× trop élevé</td><td>« Crise » créait 4 copies de 4,5 messages par minute et par nœud.</td><td>Préréglages de 0,5 à 60 messages par heure par client, préréglage « Aucun », trafic de fond désactivable.</td></tr>
+            <tr><td>Adverts synchronisés</td><td>Tous les routeurs émettaient au même instant.</td><td>Phase aléatoire propre à chaque nœud et à chaque flux.</td></tr>
+            <tr><td>Aucune écoute avant émission</td><td>Les nœuds émettaient les uns sur les autres.</td><td>Écoute du canal avant chaque émission, fenêtre de contention reprise du firmware.</td></tr>
+            <tr><td>Relais MeshCore instantanés</td><td>Tous les répéteurs retransmettaient au même instant.</td><td>Délai aléatoire proportionnel au temps d'antenne du paquet.</td></tr>
+            <tr><td>Horloge par pas de 120 ms</td><td>Des émissions décalées de quelques millisecondes partaient ensemble.</td><td>Moteur à événements discrets, horodatage à la milliseconde.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Le compteur « En émission » affiché sur la carte montre en direct le nombre d'émissions simultanées et le pic atteint.</p>
+    </section>
+
+    <section id="incoherences">
+      <h2><span class="n">§4</span>Autres incohérences corrigées</h2>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Problème</th><th>Gravité</th><th>Détail</th></tr></thead>
+          <tbody>
+            <tr><td>Doublons relayés</td><td><span class="sev maj">Majeur</span></td><td>L'émetteur relayait son propre paquet et le destinataire relayait le message qui lui était adressé.</td></tr>
+            <tr><td>Chemin MeshCore faux</td><td><span class="sev maj">Majeur</span></td><td>Le chemin appris contenait tous les répéteurs ayant relayé, et non le trajet réellement suivi par la copie livrée.</td></tr>
+            <tr><td>Graphiques absents</td><td><span class="sev maj">Majeur</span></td><td>Chart.js 4.4.4 n'existe pas sur le CDN (erreur 404) : le Comparateur et le Dashboard ne s'affichaient pas. Passage à la 4.4.1.</td></tr>
+            <tr><td>Room servers relayeurs</td><td><span class="sev moy">Moyen</span></td><td>Le firmware désactive leur relais par défaut (<code>disable_fwd = 1</code>). Option ajoutée pour le réactiver.</td></tr>
+            <tr><td>Perdu puis livré</td><td><span class="sev moy">Moyen</span></td><td>Un paquet était déclaré abandonné alors que d'autres copies circulaient encore. Il n'est désormais clos que lorsque plus aucune copie n'est en file ou en vol.</td></tr>
+            <tr><td>Collisions incomplètes</td><td><span class="sev moy">Moyen</span></td><td>Un nœud pouvait recevoir pendant qu'il émettait, et le signal le plus fort ne l'emportait jamais. Ajout du demi-duplex et de l'effet de capture (6 dB).</td></tr>
+            <tr><td>Sol trop haut sous les antennes</td><td><span class="sev maj">Majeur</span></td><td>Le SRTM prend la canopée pour le terrain : jusqu'à 10 m d'altitude en trop, assez pour dégager une ligne de visée qui ne l'est pas. Le relief de l'IGN, un modèle de terrain nu, est désormais employé par défaut en France.</td></tr>
+            <tr><td>Plateaux traités comme des crêtes</td><td><span class="sev maj">Majeur</span></td><td>Seules des « lames de couteau » infiniment fines étaient modélisées, ce qui laissait passer des liaisons à travers un plateau de 800 m de large. Ajout de l'obstacle équivalent de Bullington et de la correction d'obstacle arrondi (§2).</td></tr>
+            <tr><td>Végétation souvent absente</td><td><span class="sev moy">Moyen</span></td><td>Les serveurs Overpass étaient interrogés l'un après l'autre : une seule lenteur bloquait tout le chargement, et l'échec restait définitif. Ils sont maintenant interrogés en parallèle, avec reprises automatiques (§2).</td></tr>
+            <tr><td>Réceptions invisibles</td><td><span class="sev maj">Majeur</span></td><td>Aucune ligne n'indiquait qui avait reçu une émission ; les pertes par signal trop faible et les nœuds hors de portée n'apparaissaient nulle part. Voir §10.</td></tr>
+            <tr><td>Fond de carte</td><td><span class="sev moy">Moyen</span></td><td>CARTO affiche « API KEY REQUIRED ». Remplacé par des fonds sans clé : Esri sombre, OpenTopoMap, satellite, OpenStreetMap.</td></tr>
+            <tr><td>Compteur « Perdus »</td><td><span class="sev moy">Moyen</span></td><td>Il comptait aussi les ACK et retours de chemin perdus, alors que « Msg livrés » ne compte que les messages : les deux chiffres n'étaient pas comparables. Les deux portent désormais sur les messages directs.</td></tr>
+            <tr><td>Panneau de droite masqué</td><td><span class="sev moy">Moyen</span></td><td>Il disparaissait sous 1100 px de large, emportant le détail des nœuds et des paquets. Il reste visible jusqu'à 860 px.</td></tr>
+            <tr><td>Noms de villes absents</td><td><span class="sev min">Mineur</span></td><td>Le fond sombre Esri ne contient pas de libellés. Ajout de la couche de noms Esri sur les fonds sombre et satellite, désactivable.</td></tr>
+            <tr><td>« Nœuds atteints »</td><td><span class="sev min">Mineur</span></td><td>Le compteur incluait l'émetteur lui-même. Remplacé par « Nœuds l'ayant reçu », hors émetteur.</td></tr>
+            <tr><td>Note EU868</td><td><span class="sev min">Mineur</span></td><td>Meshtastic utilise par défaut la sous-bande 869,4–869,65 MHz (10 %, 27 dBm), pas la sous-bande à 1 %.</td></tr>
+            <tr><td>Filtres du journal</td><td><span class="sev min">Mineur</span></td><td>Les filtres ADVERT ne correspondaient à aucun événement émis.</td></tr>
+            <tr><td>Journal impossible à vider</td><td><span class="sev min">Mineur</span></td><td>Les lignes s'accumulaient sans moyen de repartir d'un journal propre. Ajout d'une corbeille (§5).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="fonctions">
+      <h2><span class="n">§5</span>Nouvelles fonctions</h2>
+      <h3>Envoi manuel d'un paquet</h3>
+      <ol class="steps">
+        <li>Section « Envoi manuel » : activer « clic sur un nœud = envoi ».</li>
+        <li>Choisir le type : message de canal, message direct ou advert (NodeInfo sous Meshtastic).</li>
+        <li>Cliquer sur un nœud. Pour un message direct, cliquer sur la source puis sur le destinataire.</li>
+        <li>La lecture démarre ; l'inspecteur suit le paquet et trace sur la carte le chemin de la copie livrée.</li>
+      </ol>
+      <p>Le bouton « Couper tout le trafic automatique » permet d'observer un paquet seul, idéalement à la vitesse ×0,25. Les mêmes envois sont possibles depuis l'inspecteur d'un nœud sélectionné.</p>
+      <h3>Hauteur d'antenne par nœud</h3>
+      <p>Un clic sur un nœud ouvre son inspecteur : rôle, hauteur d'antenne en mètres au-dessus du sol, puissance et gain. L'inspecteur affiche l'altitude du sol, l'occupation du sol à cet endroit, la perte due au clutter et la hauteur à dépasser pour la supprimer, ainsi que la liste des voisins radio avec leur marge. Des hauteurs par défaut par rôle (client 2 m, router 10 m, repeater 15 m) sont réglables et applicables à tous les nœuds existants. Le détail de ce que la hauteur change dans le calcul est en §2.</p>
+      <h3>Temps entre les envois</h3>
+      <p>Sous le curseur de vitesse, le curseur « Envois » règle le temps moyen entre deux messages d'un même client, de 10 s à 24 h ; son dernier cran coupe les messages automatiques. Il affiche le débit total du réseau et reste synchronisé avec les préréglages de la section Trafic.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Préréglage</th><th>Un message par client toutes les</th></tr></thead>
+          <tbody>
+            <tr><td>Calme</td><td class="num">2 h</td></tr>
+            <tr><td>Normal</td><td class="num">30 min</td></tr>
+            <tr><td>Soutenu</td><td class="num">6 min</td></tr>
+            <tr><td>Crise</td><td class="num">1 min</td></tr>
+            <tr><td>Aucun</td><td class="num">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>NodeInfo, position, télémétrie et adverts gardent les intervalles des firmwares ; on les coupe avec « Trafic protocolaire de fond ». Contrôle : à 20 s par client pendant 10 min, 442 messages directs créés pour 435 attendus.</p>
+
+      <h3>Qualité des liaisons, en couleurs</h3>
+      <p>Une même grandeur, la <strong>marge</strong> — l'écart entre le signal reçu et la sensibilité du récepteur — colore toute l'interface.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Trait</th><th>Marge</th><th>Ce que cela veut dire</th></tr></thead>
+          <tbody>
+            <tr><td><span class="swatch sw-ok"></span>vert</td><td class="num">≥ 10 dB</td><td>réception fiable</td></tr>
+            <tr><td><span class="swatch sw-mid"></span>orange</td><td class="num">0 à 10 dB</td><td>réception irrégulière : le moindre évanouissement fait tomber la liaison</td></tr>
+            <tr><td><span class="swatch sw-no"></span>rouge tireté</td><td class="num">&lt; 0 dB</td><td>signal sous la sensibilité : aucune réception</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Sur la carte, le calque « Liaisons radio » trace ces traits entre tous les nœuds. Sélectionner un nœud n'affiche que ses liaisons à lui, impossibles comprises. Survoler un trait donne le bilan dans les deux sens ; cliquer dessus ouvre le bilan de liaison complet avec le profil du terrain.</p>
+      <p>L'onglet <strong>Liaisons</strong>, en bas à côté du journal, donne le même bilan sous forme de tableau, trié par marge décroissante : pour chaque paire, la distance, qui reçoit qui dans chaque sens avec sa marge, et la cause dominante quand ça ne passe pas — relief, distance, végétation ou antennes trop basses. Un décompte rappelle combien de liaisons sont bonnes, en limite ou impossibles.</p>
+      <p>Dans le journal, chaque ligne <code>RX</code> affiche enfin une pastille par nœud, de la même couleur : reçu, perdu avec la raison, ou jamais atteint faute de liaison.</p>
+
+      <h3>Effacer le journal</h3>
+      <p>Une corbeille, en bout de la barre de filtres, vide toutes les lignes affichées. La simulation, les compteurs et les statistiques continuent : seul l'historique lisible est remis à zéro, ce qui permet d'observer un envoi précis sans le chercher au milieu du trafic de fond.</p>
+
+      <h3>Nommer les nœuds d'après la commune</h3>
+      <p><code>N1</code>, <code>N2</code>, <code>N3</code> ne disent rien : dans un tableau de trente liaisons, il faut retrouver chaque numéro sur la carte avant de comprendre la ligne. Les nœuds portent désormais un nom qui se lit d'un coup d'œil, en six caractères : une lettre de rôle, un tiret, les quatre premières lettres de la commune la plus proche.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Lettre</th><th>Meshtastic</th><th>MeshCore</th><th>Exemple</th></tr></thead>
+          <tbody>
+            <tr><td><strong>R</strong></td><td>Repeater</td><td>Repeater</td><td><code>R-ANDE</code></td></tr>
+            <tr><td><strong>N</strong></td><td>Router</td><td>Room server</td><td><code>N-GAIL</code></td></tr>
+            <tr><td><strong>C</strong></td><td>Client</td><td>Companion</td><td><code>C-VERN</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Les lettres valent dans les deux protocoles : un réseau enregistré garde son sens quand on bascule de l'un à l'autre. Deux nœuds de même rôle près de la même commune sont numérotés — <code>C-ANDE</code>, <code>C-ANDE2</code>. Changer le rôle d'un nœud change sa lettre ; le déplacer change sa commune.</p>
+      <p>Les communes viennent des chefs-lieux d'ADMIN EXPRESS de l'IGN, en une seule requête pour toute la zone du réseau : une centaine de points, une vingtaine de kilo-octets. L'article est écarté (« LES ANDELYS » donne <code>ANDE</code>) et les communes en Saint- sont abrégées en <code>ST</code>, sans quoi elles se ramèneraient toutes à <code>SAIN</code>.</p>
+      <p>Un nom que vous saisissez vous-même n'est jamais réécrit, même si le nœud bouge. Vider le champ rend la main au nom automatique, et un bouton « Renommer tous les nœuds » réattribue tout, y compris les noms saisis à la main.</p>
+
+      <h3>Garder ses réseaux</h3>
+      <p>Placer trente nœuds prend du temps ; les perdre en fermant l'onglet n'a pas de sens. Le simulateur écrit désormais tout ce que vous avez construit dans le <strong>stockage local du navigateur</strong> : position, rôle, hauteur d'antenne, puissance, gain, nom et état de chaque nœud, plus les réglages radio, le trafic, le terrain et la vue de la carte. À la réouverture, tout est replacé tel quel.</p>
+      <p>C'est un stockage propre à <em>un navigateur sur une machine</em> : rien ne part vers le serveur, rien n'est partagé entre deux ordinateurs, et il n'y a ni compte ni cookie de suivi. Vider les données du site l'efface aussi.</p>
+      <p>La section <strong>Mes réseaux</strong>, dans le panneau de gauche, ajoute trois choses par-dessus :</p>
+      <ul>
+        <li><strong>Enregistrements nommés</strong> — autant de réseaux que voulu, rechargeables d'un clic. Pratique pour comparer deux implantations de répéteurs sur la même vallée.</li>
+        <li><strong>Export en fichier <code>.json</code></strong> — la seule façon de transporter un réseau vers une autre machine, de l'envoyer à quelqu'un, ou d'en garder une copie hors du navigateur.</li>
+        <li><strong>Import</strong> — relit un fichier exporté, l'affiche et l'ajoute à la liste.</li>
+      </ul>
+      <p>Ce qui est enregistré s'arrête à ce que vous avez construit. L'horloge, les paquets en vol, le journal et les statistiques ne le sont pas : ils se reconstruisent en quelques secondes de simulation, et les garder aurait multiplié la taille du stockage sans rien apporter.</p>
+      <p>Un fichier importé est traité comme une donnée hostile : chaque valeur est ramenée dans ses bornes, un rôle inconnu redevient « client », un nœud aux coordonnées illisibles est ignoré, et un nom contenant du HTML s'affiche comme du texte.</p>
+
+      <h3>Détacher le tableau du bas</h3>
+      <p>Le bouton <strong>⧉ Détacher</strong>, à côté des onglets Journal et Liaisons, ouvre ce panneau dans une fenêtre séparée : la carte récupère la place en bas, et le tableau peut vivre en grand sur un second écran pendant qu'on déplace des nœuds sur le premier.</p>
+      <p>Ce n'est pas une copie figée. C'est le panneau lui-même qui est déplacé dans l'autre fenêtre, avec ses gestionnaires de clic : il continue de se remplir en direct, les filtres fonctionnent, et cliquer une ligne sélectionne toujours le paquet ou la liaison dans la fenêtre principale. Le texte y est un peu plus grand, puisque la place n'est plus comptée.</p>
+      <p>La position et la taille de la fenêtre sont mémorisées : une fois posée sur le second écran, elle s'y rouvrira. La fermer, ou cliquer « Réintégrer », remet le panneau en bas de la page. Si le navigateur bloque les fenêtres surgissantes, un message le dit et rien n'est perdu.</p>
+    </section>
+
+    <section id="constantes">
+      <h2><span class="n">§6</span>Constantes des firmwares</h2>
+      <p>Relevées dans le code source des deux projets en septembre 2026, et non estimées.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Paramètre</th><th>Valeur</th><th>Fichier source</th></tr></thead>
+          <tbody>
+            <tr><td>Fenêtre de contention Meshtastic</td><td class="mono">CWmin 3 · CWmax 8</td><td class="src">RadioInterface.h</td></tr>
+            <tr><td>Durée d'un slot</td><td class="mono">2,5·Tsym + 7,6 ms</td><td class="src">RadioInterface.cpp</td></tr>
+            <tr><td>File d'émission</td><td class="mono">16 paquets</td><td class="src">RadioInterface.h</td></tr>
+            <tr><td>Préambule Meshtastic</td><td class="mono">16 symboles</td><td class="src">RadioInterface.h</td></tr>
+            <tr><td>Annulation sur doublon</td><td class="mono">tous sauf ROUTER</td><td class="src">FloodingRouter.cpp</td></tr>
+            <tr><td>NodeInfo · position · télémétrie</td><td class="mono">3 h · 1 h · 1 h</td><td class="src">Default.h</td></tr>
+            <tr><td>Renvois sans ACK (Meshtastic)</td><td class="mono">2 renvois (NUM_RELIABLE_RETX = 3)</td><td class="src">NextHopRouter.h</td></tr>
+            <tr><td>Attente d'ACK (Meshtastic)</td><td class="mono">2·airtime + 56·slot + 4,5 s</td><td class="src">RadioInterface.cpp</td></tr>
+            <tr><td>Attente d'ACK (MeshCore)</td><td class="mono">flood 500 ms + 16·airtime</td><td class="src">companion_radio/MyMesh.cpp</td></tr>
+            <tr><td>Délai de relais MeshCore</td><td class="mono">rand(0, 5·airtime·0,5)</td><td class="src">simple_repeater/MyMesh.cpp</td></tr>
+            <tr><td>flood.max · adverts</td><td class="mono">64 · 8</td><td class="src">simple_repeater/MyMesh.cpp</td></tr>
+            <tr><td>Advert flood MeshCore</td><td class="mono">47 h</td><td class="src">simple_repeater/MyMesh.cpp</td></tr>
+            <tr><td>Advert zero-hop MeshCore</td><td class="mono">2 min neuf, sinon 60–240 min</td><td class="src">helpers/CommonCLI.cpp</td></tr>
+            <tr><td>Canal occupé (MeshCore)</td><td class="mono">+200 ms, 4 s max</td><td class="src">Dispatcher.cpp</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="verif">
+      <h2><span class="n">§7</span>Vérifications</h2>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Scénario</th><th>Résultat</th></tr></thead>
+          <tbody>
+            <tr><td>Meshtastic, 40 nœuds, 1 h, trafic normal</td><td>29 messages sur 30 livrés · pic de 3 émissions simultanées</td></tr>
+            <tr><td>MeshCore, 40 nœuds, 1 h, trafic normal</td><td>31 messages sur 31 livrés · pic de 2 émissions simultanées</td></tr>
+            <tr><td>Broadcast manuel, 25 nœuds à Grenoble</td><td>4 émissions radio · 25 nœuds atteints sur 25 · autres relais annulés</td></tr>
+            <tr><td>MeshCore, deux messages A → B</td><td>1<sup>er</sup> en flood (4 émissions) · 2<sup>e</sup> par le chemin appris (1 émission)</td></tr>
+            <tr><td>Relief accidenté, 60 nœuds sur 15 km</td><td>Meshtastic livre via 2 à 3 relais · MeshCore échoue sans répéteurs bien placés</td></tr>
+            <tr><td>Meshtastic, destinataire injoignable</td><td>3 envois espacés de 7,5 s (SF11 · 250 kHz), puis échec signalé</td></tr>
+            <tr><td>MeshCore, répéteur du chemin coupé</td><td>3 essais par le chemin appris · chemin oublié · 4<sup>e</sup> essai en flood livré via un autre répéteur, qui devient le nouveau chemin</td></tr>
+            <tr><td>Meshtastic, 60 nœuds, trafic soutenu, 30 min</td><td>Renvois activés : 96,1 % livrés, 3 207 émissions · désactivés : 81,8 % livrés, 3 058 émissions</td></tr>
+            <tr><td>Broadcast manuel, 25 nœuds dans le Vercors</td><td>5 émissions · 15 nœuds l'ont reçu, identique selon le compteur, le détail par nœud, la somme des émissions et les couleurs de la carte · 9 jamais atteints</td></tr>
+            <tr><td>Audit des compteurs, 50 nœuds, 1 h (voir §10)</td><td>Émissions, réceptions et bilans de messages concordent sur les deux protocoles</td></tr>
+            <tr><td>500 nœuds, relief et OpenStreetMap</td><td>124 750 liaisons calculées en 2,2 s · 10 min simulées en 2,1 s</td></tr>
+            <tr><td>Tuiles IGN comparées à l'API altimétrique officielle</td><td>40 points sur 12,5 km : écart moyen 0,08 m, maximum 0,66 m</td></tr>
+            <tr><td>Zone située en Allemagne</td><td>24 tuiles IGN refusées en 306 ms, bascule automatique sur le SRTM</td></tr>
+            <tr><td>Zone en bord de mer (Bretagne)</td><td>9 tuiles vides détectées, bascule automatique sur le SRTM</td></tr>
+            <tr><td>Plateau Muids – Gaillon, 125 positions testées</td><td>31 liaisons directes avant la correction d'obstacle arrondi, 0 après</td></tr>
+            <tr><td>Serveur web, requêtes</td><td><code>app.js</code> compressé de 119 ko à 37 ko · revalidation 304 · 404 et 405 conformes</td></tr>
+            <tr><td>Serveur web, accès interdits</td><td>403 sur la remontée de dossier, les fichiers cachés, <code>original/</code>, <code>backup/</code> et les fichiers du serveur</td></tr>
+            <tr><td>Relais <code>/api/overpass</code></td><td>719 polygones ramenés via <code>maps.mail.ru</code>, compressés à 54 ko, pendant que l'appel direct à <code>overpass-api.de</code> échouait</td></tr>
+            <tr><td>Relais, requêtes refusées</td><td>405 hors POST · 400 si ce n'est pas une requête Overpass · 413 au-delà de 16 ko · 429 au-delà de 20 par minute</td></tr>
+            <tr><td>Images de Leaflet</td><td>chargées depuis le CDN après correction de la politique de sécurité (26×26 et 25×41 pixels)</td></tr>
+            <tr><td>Nommage sur 8 nœuds, vallée de la Seine</td><td>108 communes chargées · <code>R-TROI</code> / <code>R-TROI2</code> pour deux répéteurs voisins · <code>C-STAU</code> pour Saint-Aubin-sur-Gaillon · un nom saisi à la main conservé, puis remplacé par le renommage forcé</td></tr>
+            <tr><td>Règle d'abréviation sur les 39 communes autour des Andelys</td><td>3 collisions (ANDE, HEUD, PORT), levées par la numérotation ; sans l'abrégé Saint-, 4 communes se ramenaient toutes à SAIN</td></tr>
+            <tr><td>Végétation et bâti IGN comparés à OpenStreetMap, vallée de la Seine</td><td>86 % des cellules classées pareil · arbres 38 % (IGN) contre 33 % (OSM) · bâti 14 % contre 16 % · 3,9 s contre 9,9 s</td></tr>
+            <tr><td>Seuil de dessin des couches BD TOPO</td><td>végétation muette au-delà de 7 m/pixel, bâti au-delà de 4,8 m/pixel : images demandées plus fines, puis réduites</td></tr>
+            <tr><td>Miroirs Overpass, contrôle du contenu</td><td>overpass.osm.ch renvoie 200 et zéro polygone pour la France (extrait suisse) : écarté de la liste</td></tr>
+            <tr><td>Relais Overpass, cache</td><td>même requête : 174 ms au premier appel, 3 ms au second</td></tr>
+            <tr><td>Rechargement de la page après quatre nœuds placés</td><td>étiquettes, rôles, hauteurs, nœud désactivé, SF, trafic et vue de la carte replacés à l'identique</td></tr>
+            <tr><td>Enregistrement nommé, rechargé après modification de la scène</td><td>les 4 nœuds d'origine et les réglages reviennent, le nœud ajouté entre-temps disparaît</td></tr>
+            <tr><td>Fichier importé volontairement hostile</td><td>rôle inconnu ramené à « client », hauteurs et bornes radio clampées, nœud aux coordonnées illisibles ignoré, HTML du nom affiché comme texte</td></tr>
+            <tr><td>Panneau du bas déplacé dans un second document</td><td>onglets, tableau des liaisons et clic sur une ligne continuent de fonctionner ; retour en place sans perte</td></tr>
+            <tr><td>Fenêtres surgissantes bloquées par le navigateur</td><td>message explicite, panneau conservé en bas, application intacte</td></tr>
+            <tr><td>Application servie par <code>server.js</code></td><td>relief, OpenStreetMap, Leaflet et Chart.js chargés · aucune erreur · politique de sécurité active et ne bloquant rien</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="limites">
+      <h2><span class="n">§8</span>Limites connues</h2>
+      <ul>
+        <li><strong>Serveurs OpenStreetMap parfois saturés</strong> (504, et même une erreur 406 sans en-tête CORS en production). L'application essaie le relais du serveur puis quatre miroirs publics, avec reprises automatiques ; le bouton ↻ relance le chargement. La simulation continue sans végétation en attendant. Seule une instance Overpass privée supprime vraiment le problème.</li>
+        <li><strong>Double comptage partiel hors de France</strong> : le SRTM inclut déjà en partie la canopée et les toits, si bien que la perte due au clutter est comptée une fois et demie. Le relief de l'IGN, employé en France, n'a pas ce défaut. Les pertes liées au clutter restent étiquetées « Estimation ».</li>
+        <li><strong>Étendue limitée pour l'IGN</strong> : au-delà d'une quarantaine de tuiles, soit une zone d'une cinquantaine de kilomètres, le volume à télécharger devient excessif et l'application repasse au SRTM. Les très grands réseaux perdent donc le bénéfice du terrain nu.</li>
+        <li><strong>Non simulé</strong> : le routage « next-hop » de Meshtastic 2.6, avec les renvois effectués par les nœuds intermédiaires qu'il introduit.</li>
+        <li><strong>Nombre d'essais MeshCore</strong> : décidé par l'application du téléphone et non par le firmware ; réglable de 1 à 5 (3 par défaut).</li>
+        <li><strong>Détail des réceptions</strong> : conservé pour les 400 derniers paquets et tous les paquets envoyés à la main, afin de limiter la mémoire sur les gros réseaux. Au-delà, seul le nombre de nœuds atteints reste disponible.</li>
+        <li><strong>Aperçu local</strong> : un fichier <code>.claude/launch.json</code> sert à lancer le serveur pendant les tests ; il n'est pas nécessaire en production et n'est pas copié dans l'image Docker.</li>
+      </ul>
+    </section>
+
+    <section id="ack">
+      <h2><span class="n">§9</span>L'ACK et les renvois</h2>
+      <p class="define"><b>ACK</b> (de l'anglais <em>acknowledgement</em>) : accusé de réception. C'est un petit paquet de quelques octets que le destinataire renvoie pour dire « bien reçu », comme la double coche d'une messagerie.</p>
+      <p>La radio LoRa ne garantit rien : un paquet peut disparaître dans une collision ou parce que le signal est trop faible, sans que l'émetteur le sache. L'ACK est le seul moyen pour l'émetteur de savoir que son message est arrivé ; s'il ne reçoit rien au bout d'un certain délai, il renvoie le message.</p>
+
+      <figure>
+        <div class="figure-scroll">
+          <svg viewBox="0 0 660 370" role="img" aria-labelledby="ackTitle ackDesc">
+            <title id="ackTitle">Échange message et ACK</title>
+            <desc id="ackDesc">À gauche, le message passe par un relais, le destinataire renvoie un ACK. À droite, le message est perdu, l'émetteur attend l'ACK, ne le reçoit pas et renvoie le message, qui arrive au deuxième essai.</desc>
+            <defs>
+              <marker id="hm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="m-msg"/></marker>
+              <marker id="ha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="m-ack"/></marker>
+            </defs>
+
+            <g>
+              <text x="50" y="18" class="panel-title">Cas normal</text>
+              <text x="50" y="46" text-anchor="middle" class="lane">A · émetteur</text>
+              <text x="160" y="46" text-anchor="middle" class="lane">Relais</text>
+              <text x="270" y="46" text-anchor="middle" class="lane">B · destinataire</text>
+              <line x1="50" y1="58" x2="50" y2="355" class="lifeline"/>
+              <line x1="160" y1="58" x2="160" y2="355" class="lifeline"/>
+              <line x1="270" y1="58" x2="270" y2="355" class="lifeline"/>
+
+              <line x1="50" y1="80" x2="158" y2="94" class="msg" marker-end="url(#hm)"/>
+              <text x="104" y="77" text-anchor="middle" class="lbl lbl-msg">message</text>
+              <line x1="160" y1="106" x2="268" y2="120" class="msg" marker-end="url(#hm)"/>
+              <text x="214" y="103" text-anchor="middle" class="lbl lbl-msg">message</text>
+              <circle cx="270" cy="120" r="3.5" class="dot"/>
+
+              <line x1="270" y1="150" x2="162" y2="164" class="ack" marker-end="url(#ha)"/>
+              <text x="216" y="147" text-anchor="middle" class="lbl lbl-ack">ACK</text>
+              <line x1="160" y1="176" x2="52" y2="190" class="ack" marker-end="url(#ha)"/>
+              <text x="106" y="173" text-anchor="middle" class="lbl lbl-ack">ACK</text>
+              <text x="60" y="214" class="lbl lbl-ok">✓ livré, rien à renvoyer</text>
+            </g>
+
+            <g transform="translate(340 0)">
+              <text x="50" y="18" class="panel-title">Message perdu</text>
+              <text x="50" y="46" text-anchor="middle" class="lane">A · émetteur</text>
+              <text x="160" y="46" text-anchor="middle" class="lane">Relais</text>
+              <text x="270" y="46" text-anchor="middle" class="lane">B · destinataire</text>
+              <line x1="50" y1="58" x2="50" y2="355" class="lifeline"/>
+              <line x1="160" y1="58" x2="160" y2="355" class="lifeline"/>
+              <line x1="270" y1="58" x2="270" y2="355" class="lifeline"/>
+
+              <line x1="50" y1="80" x2="158" y2="94" class="msg" marker-end="url(#hm)"/>
+              <text x="104" y="77" text-anchor="middle" class="lbl lbl-msg">message</text>
+              <line x1="160" y1="106" x2="246" y2="117" class="msg"/>
+              <text x="206" y="103" text-anchor="middle" class="lbl lbl-msg">message</text>
+              <line x1="243" y1="110" x2="257" y2="124" class="cross"/>
+              <line x1="257" y1="110" x2="243" y2="124" class="cross"/>
+              <text x="250" y="142" text-anchor="middle" class="lbl lbl-bad">perdu</text>
+
+              <line x1="50" y1="96" x2="50" y2="218" class="wait"/>
+              <text x="60" y="160" class="lbl lbl-warn">attente de l'ACK…</text>
+              <text x="60" y="222" class="lbl lbl-warn">délai dépassé</text>
+
+              <line x1="50" y1="240" x2="158" y2="254" class="msg" marker-end="url(#hm)"/>
+              <text x="104" y="237" text-anchor="middle" class="lbl lbl-msg">renvoi</text>
+              <line x1="160" y1="262" x2="268" y2="276" class="msg" marker-end="url(#hm)"/>
+              <text x="214" y="259" text-anchor="middle" class="lbl lbl-msg">renvoi</text>
+              <circle cx="270" cy="276" r="3.5" class="dot"/>
+
+              <line x1="270" y1="292" x2="162" y2="304" class="ack" marker-end="url(#ha)"/>
+              <text x="216" y="289" text-anchor="middle" class="lbl lbl-ack">ACK</text>
+              <line x1="160" y1="314" x2="52" y2="326" class="ack" marker-end="url(#ha)"/>
+              <text x="106" y="311" text-anchor="middle" class="lbl lbl-ack">ACK</text>
+              <text x="60" y="350" class="lbl lbl-ok">✓ livré au 2ᵉ essai</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption>L'ACK voyage comme n'importe quel paquet : il passe par les relais, occupe le canal et peut lui aussi se perdre. Le renvoi, à droite, est désormais simulé.</figcaption>
+      </figure>
+
+      <h3>Comment le simulateur le reproduit</h3>
+      <ul>
+        <li><strong>Meshtastic</strong> : les messages texte (directs et de canal) demandent un ACK. Sans réponse au bout du délai calculé comme dans le firmware (≈ 7,7 s en LONG_FAST), l'émetteur renvoie le <em>même</em> paquet, 2 fois au plus. Les nœuds qui l'ont déjà reçu l'ignorent ; le destinataire qui l'avait déjà renvoie un nouvel ACK, le premier ayant pu se perdre.</li>
+        <li><strong>MeshCore</strong> : chaque message direct attend un ACK, glissé dans le retour de chemin pour le premier message puis renvoyé par le chemin appris. Chaque essai est un <em>nouveau</em> paquet, que les répéteurs relaient à nouveau. Si tous les essais par le chemin appris échouent, le chemin est oublié et un dernier essai part en flood.</li>
+        <li>Le journal affiche chaque renvoi et chaque échec sous l'étiquette <code>RETX</code> ; l'inspecteur d'un paquet indique l'état de l'accusé et le nombre d'envois.</li>
+      </ul>
+
+      <h3>Où régler l'option</h3>
+      <p>Panneau de gauche, section « Trafic », rubrique « Accusés de réception (ACK) ».</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Réglage</th><th>Protocole</th><th>Défaut</th><th>Effet</th></tr></thead>
+          <tbody>
+            <tr><td>Demander un ACK pour les messages texte</td><td>Meshtastic</td><td class="mono">activé</td><td>Sans ACK, aucun renvoi n'est possible.</td></tr>
+            <tr><td>Renvoyer si l'ACK n'arrive pas</td><td>les deux</td><td class="mono">activé</td><td>Désactivé : les ACK circulent toujours, mais un message perdu n'est plus renvoyé.</td></tr>
+            <tr><td>Essais par message</td><td>MeshCore</td><td class="mono">3</td><td>Réglable de 1 à 5 ; le firmware ne fixe pas cette valeur.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Le compteur « Renvois » apparaît sur la carte, dans le Dashboard (courbe des renvois par seconde) et dans le rapport automatique, qui signale quand les renvois deviennent une part importante du trafic.</p>
+
+      <div class="note">
+        <span class="label">À savoir : l'ACK implicite de Meshtastic</span>
+        <p>Dès que l'émetteur entend un voisin relayer son message, il le considère comme acquitté et cesse de le renvoyer, même si le destinataire ne le reçoit jamais. Le simulateur reproduit ce comportement : un message direct peut donc afficher « ACK implicite » et « jamais livré » en même temps. C'est la différence, dans l'application Meshtastic, entre un message acquitté par le maillage et un message confirmé par le destinataire.</p>
+      </div>
+
+      <h3>Ce que coûtent les renvois</h3>
+      <p>Mesure sur 60 nœuds Meshtastic (6 repeaters à 15 m, clients à 2 m) en trafic soutenu pendant 30 minutes simulées :</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Indicateur</th><th>Renvois activés</th><th>Renvois désactivés</th></tr></thead>
+          <tbody>
+            <tr><td>Messages directs livrés</td><td class="num">96,1 %</td><td class="num">81,8 %</td></tr>
+            <tr><td>Émissions radio</td><td class="num">3 207</td><td class="num">3 058</td></tr>
+            <tr><td>Renvois</td><td class="num">92</td><td class="num">0</td></tr>
+            <tr><td>Échecs signalés (aucun ACK)</td><td class="num">8</td><td class="num">89</td></tr>
+            <tr><td>Émissions en collision</td><td class="num">774</td><td class="num">720</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Dans ce scénario, les renvois ajoutent 5 % d'émissions et 7 % de collisions pour 14 points de livraison en plus. Le compromis peut s'inverser quand le canal est déjà saturé : désactiver l'option en mode « Crise » permet de le mesurer.</p>
+    </section>
+
+    <section id="lecture">
+      <h2><span class="n">§10</span>Lire la simulation</h2>
+      <p>La question était : qui a reçu le paquet émis par un autre nœud, et qui ne l'a pas reçu ? Les calculs le savaient, mais rien ne l'affichait. Voici comment le simulateur traite un paquet, et où le voir.</p>
+
+      <h3>Le parcours d'un paquet</h3>
+      <ol class="steps">
+        <li><strong>Création</strong> (<code>GEN</code>) : un nœud fabrique le paquet et le place dans sa file d'émission.</li>
+        <li><strong>Émission</strong> (<code>TX</code>) : après avoir écouté le canal, il émet. Tous les nœuds à portée radio l'entendent en même temps.</li>
+        <li><strong>Réception</strong> (<code>RX</code>) : à la fin de l'émission, chaque nœud à portée l'a soit <em>reçu</em>, soit <em>perdu</em> (collision avec une autre émission, occupé à émettre, signal trop faible cette fois-ci), soit l'<em>avait déjà</em>.</li>
+        <li><strong>Relais</strong> (<code>RELAY</code>) : ceux qui viennent de le recevoir pour la première fois décident de relayer, et on reprend à l'étape 2. Sous Meshtastic, un client annule son relais s'il entend un voisin relayer avant lui (<code>SUPPR</code>).</li>
+        <li><strong>Fin</strong> : le destinataire le reçoit (<code>DELIVERED</code>), ou plus aucune copie ne circule et le paquet est déclaré perdu (<code>DROP</code>).</li>
+      </ol>
+
+      <h3>Le journal</h3>
+      <p>Une ligne <code>RX</code> résume chaque émission, par exemple : <span class="mono">N10 relaie #1 → reçu par N13, N12, N21 · perdu par N20 (trop faible) · 6 l'avaient déjà</span>. Les lignes s'affichent en entier et le survol d'une étiquette donne sa signification.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Étiquette</th><th>Signification</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">GEN · ADVERT</td><td>Création d'un paquet ; ADVERT pour les adverts MeshCore et NodeInfo Meshtastic.</td></tr>
+            <tr><td class="mono">TX</td><td>Début d'une émission radio (masqué par défaut, RX donne le résultat).</td></tr>
+            <tr><td class="mono">RX</td><td>Résultat d'une émission : reçu par, perdu par, déjà reçu.</td></tr>
+            <tr><td class="mono">RELAY · SUPPR</td><td>Relais programmé ; relais annulé car un voisin a relayé avant.</td></tr>
+            <tr><td class="mono">DELIVERED · DROP</td><td>Arrivé au destinataire ; abandonné (file pleine ou plus aucune copie).</td></tr>
+            <tr><td class="mono">RETX · PATH · DUTY</td><td>Renvoi faute d'ACK ; chemin MeshCore appris ou oublié ; émission retardée par le duty cycle.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Le paquet sélectionné</h3>
+      <p>Un clic sur une ligne du journal sélectionne son paquet. Toutes ses lignes sont surlignées, et la carte colore chaque nœud :</p>
+      <ul class="legend">
+        <li><i class="k ok"></i>reçu</li>
+        <li><i class="k relay"></i>reçu et relayé</li>
+        <li><i class="k lost"></i>à portée mais perdu</li>
+        <li><i class="k none"></i>jamais atteint (estompé)</li>
+        <li><i class="k origin"></i>émetteur (cerclé blanc)</li>
+      </ul>
+      <p>Le panneau de droite liste, pour chaque nœud, l'instant de réception, le nœud qui le lui a transmis, le nombre de relais en amont, le signal en dBm, les doublons reçus ensuite et sa décision de relais. Suivent l'historique des émissions du paquet et, pour chacune, le nombre de nouveaux récepteurs, de pertes et de doublons.</p>
+
+      <h3>Ce que comptent les compteurs</h3>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Compteur</th><th>Ce qu'il compte</th></tr></thead>
+          <tbody>
+            <tr><td>Paquets</td><td>Tous les paquets créés : messages, positions, télémétrie, adverts, ACK, retours de chemin.</td></tr>
+            <tr><td>Émissions</td><td>Chaque transmission sur les ondes, relais compris : un paquet relayé par 4 nœuds compte 5 émissions.</td></tr>
+            <tr><td>Msg livrés · Msg perdus</td><td>Messages directs arrivés, ou définitivement perdus. Ceux encore en route ne comptent dans aucun des deux.</td></tr>
+            <tr><td>Messages livrés (carte)</td><td>Même nombre, avec le pourcentage parmi les messages terminés.</td></tr>
+            <tr><td>Collisions</td><td>Émissions dont au moins un nœud qui n'avait pas encore le paquet l'a perdu par collision.</td></tr>
+            <tr><td>Renvois</td><td>Messages renvoyés faute d'ACK, et échecs définitifs.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Audit des calculs</h3>
+      <p>Pour vérifier les calculs, un script indépendant rejoue une heure de trafic soutenu sur 50 nœuds et compare les compteurs entre eux.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Vérification</th><th>Meshtastic</th><th>MeshCore</th></tr></thead>
+          <tbody>
+            <tr><td>Émissions : total = somme des nœuds</td><td class="num">10 242 = 10 242</td><td class="num">4 068 = 4 068</td></tr>
+            <tr><td>Réceptions décodées = somme des nœuds</td><td class="num">106 500 = 106 500</td><td class="num">88 204 = 88 204</td></tr>
+            <tr><td>Réceptions sans lien radio</td><td class="num">0</td><td class="num">0</td></tr>
+            <tr><td>Messages envoyés = livrés + perdus + en route</td><td class="num">217 = 217</td><td class="num">189 = 189</td></tr>
+            <tr><td>Livrés absents des nœuds atteints · compteurs négatifs</td><td class="num">0 · 0</td><td class="num">0 · 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Le moteur est cohérent. Les écarts constatés venaient de l'affichage : le compteur « Perdus » et « Nœuds atteints », corrigés (§4).</p>
+    </section>
+
+    <section id="heberger">
+      <h2><span class="n">§11</span>Mettre en ligne</h2>
+      <p>Tout le simulateur tourne dans le navigateur : il n'y a ni base de données, ni calcul côté serveur, ni compte utilisateur. Un serveur web statique suffit. Celui fourni tient en un fichier et n'utilise <strong>aucune dépendance</strong> : Node 18 ou plus, rien d'autre à installer.</p>
+      <div class="cmd">node server.js</div>
+      <p>L'application répond alors sur <code>http://localhost:8765</code>. Quelques variables d'environnement suffisent à l'adapter.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Variable</th><th>Défaut</th><th>Rôle</th></tr></thead>
+          <tbody>
+            <tr><td><code>PORT</code> · <code>HOST</code></td><td class="mono">8765 · 0.0.0.0</td><td>écoute</td></tr>
+            <tr><td><code>TRUST_PROXY</code></td><td class="mono">–</td><td>nombre de reverse proxys devant le serveur ; <code>1</code> derrière nginx</td></tr>
+            <tr><td><code>ACCESS_LOG</code></td><td class="mono">–</td><td>fichier où écrire le journal des accès, en plus de la console</td></tr>
+            <tr><td><code>QUIET</code></td><td class="mono">–</td><td><code>1</code> coupe l'affichage du journal dans la console</td></tr>
+            <tr><td><code>CSP</code></td><td class="mono">–</td><td><code>off</code> retire l'en-tête de sécurité</td></tr>
+            <tr><td><code>OVERPASS</code> · <code>OVERPASS_MIRRORS</code></td><td class="mono">– · 4 miroirs</td><td>relais OpenStreetMap</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>En conteneur :</p>
+      <div class="cmd">docker compose up -d --build</div>
+
+      <h3>Ce que fait le serveur</h3>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Fonction</th><th>Détail</th></tr></thead>
+          <tbody>
+            <tr><td>Compression</td><td>gzip sur les fichiers texte : <code>app.js</code> passe de 119 ko à 37 ko</td></tr>
+            <tr><td>Cache</td><td><code>no-cache</code> et signature ETag sur les <code>.html</code> et <code>.js</code> : une mise à jour arrive immédiatement chez les visiteurs, sans retéléchargement inutile (réponse 304). Un jour de cache pour les images et polices.</td></tr>
+            <tr><td>Sécurité</td><td>politique <code>Content-Security-Policy</code> n'autorisant que les services réellement utilisés, plus <code>nosniff</code>, <code>Referrer-Policy</code> et <code>X-Frame-Options</code></td></tr>
+            <tr><td>Fichiers protégés</td><td>403 sur la remontée de dossier, les fichiers cachés, <code>original/</code>, <code>backup/</code> et les fichiers du serveur</td></tr>
+            <tr><td>Relais OpenStreetMap</td><td><code>POST /api/overpass</code> : la requête part du serveur, ce qui contourne les refus CORS des miroirs en panne</td></tr>
+            <tr><td>Journal</td><td>une ligne par requête avec l'adresse du visiteur, une ligne <code>VISITE</code> par nouvelle arrivée</td></tr>
+            <tr><td>Supervision</td><td><code>/healthz</code>, utilisé aussi par la sonde de santé de l'image Docker</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Le journal des accès</h3>
+      <p>Le serveur écrit une ligne par requête, et une ligne <code>VISITE</code> la première fois qu'une adresse apparaît — ou après 30 minutes sans activité de sa part. De quoi repérer les visiteurs sans avoir à lire toutes les requêtes de fichiers.</p>
+      <div class="cmd">2026-09-16T08:12:03.100Z VISITE 203.0.113.7 /  "Mozilla/5.0 (Windows NT 10.0…"<br>2026-09-16T08:12:03.123Z 203.0.113.7 GET / -&gt; 200 (4 ms)<br>2026-09-16T08:12:03.288Z 203.0.113.7 GET /app.js -&gt; 200 (12 ms)</div>
+      <p>Derrière un reverse proxy, l'adresse vue par le serveur est celle du proxy : la vraie adresse du visiteur se trouve dans l'en-tête <code>X-Forwarded-For</code>. Comme n'importe qui peut falsifier cet en-tête, il n'est lu que si <code>TRUST_PROXY</code> indique combien de proxys sont devant le serveur — <code>1</code> derrière nginx, <code>2</code> derrière Cloudflare puis nginx. Sans cette variable, tout viendrait de <code>127.0.0.1</code>.</p>
+      <p>Le journal part dans la console, donc dans <code>journalctl</code> ou <code>docker compose logs</code> ; <code>ACCESS_LOG</code> l'écrit en plus dans un fichier, que <code>QUIET=1</code> n'affecte pas. Les sondes de santé sur <code>/healthz</code> ne sont pas journalisées.</p>
+      <div class="note">
+        <span class="label">Donnée personnelle</span>
+        <p>Une adresse IP en est une. Sur un site public, mieux vaut annoncer cette journalisation et purger le fichier au bout d'une durée raisonnable, par exemple avec <code>logrotate</code>.</p>
+      </div>
+
+      <h3>Le relais OpenStreetMap</h3>
+      <p>Les miroirs Overpass publics sont irréguliers. En panne, certains renvoient une page d'erreur <em>sans</em> en-tête CORS : le navigateur refuse alors de la lire et signale une violation de politique d'origine, ce qui masque la vraie cause. Constaté en production sur <code>overpass-api.de</code>, qui répondait « 406 Not Acceptable » pendant que les deux autres miroirs saturaient.</p>
+      <p>Le serveur expose donc <code>POST /api/overpass</code>, qui transmet la requête aux miroirs l'un après l'autre et renvoie la première réponse valable. De serveur à serveur, aucune règle CORS ne s'applique : le problème disparaît. Le navigateur essaie ce relais en premier, puis les miroirs en direct s'il est absent — l'application reste donc fonctionnelle sur un hébergement statique.</p>
+      <p>Le relais est volontairement étroit : seules les requêtes Overpass de lecture sont acceptées, plafonnées à 16 ko, 20 par minute et par adresse, avec au plus 4 requêtes sortantes simultanées. <code>OVERPASS=off</code> le désactive, <code>OVERPASS_MIRRORS</code> change la liste des miroirs.</p>
+
+      <h3>À prévoir</h3>
+      <ul>
+        <li><strong>HTTPS obligatoire.</strong> Le navigateur refuse d'appeler les services externes, tous en HTTPS, depuis une page en HTTP simple : sans certificat, ni le relief ni les fonds de carte ne se chargeraient. Le <code>README.md</code> contient un service systemd et un exemple de configuration nginx.</li>
+        <li><strong>Serveurs OpenStreetMap.</strong> Gratuits et souvent saturés ; le relais du serveur limite la casse mais ne la supprime pas. Pour un site public fréquenté, héberger sa propre instance Overpass reste la seule garantie — il suffit alors de l'indiquer dans <code>OVERPASS_MIRRORS</code>.</li>
+        <li><strong>Volume du relief IGN.</strong> Environ 210 ko par tuile, 15 à 40 tuiles par zone, soit 3 à 8 Mo une seule fois : l'IGN autorise 21 jours de cache navigateur.</li>
+        <li><strong>Hébergement statique possible.</strong> GitHub Pages, Netlify ou un simple dossier Apache conviennent aussi. Il faut alors reproduire l'en-tête <code>no-cache</code> sur les <code>.html</code> et <code>.js</code>, sans quoi les visiteurs garderont longtemps une version périmée.</li>
+      </ul>
+
+      <h3>Services appelés par le navigateur</h3>
+      <p>Ils sont déclarés dans la politique de sécurité du serveur ; toute nouvelle source de données doit y être ajoutée, sinon le navigateur la bloque.</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>Service</th><th>Usage</th></tr></thead>
+          <tbody>
+            <tr><td><code>data.geopf.fr</code></td><td>relief IGN RGE ALTI et profil altimétrique à la demande</td></tr>
+            <tr><td><code>s3.amazonaws.com</code></td><td>relief SRTM, hors couverture IGN</td></tr>
+            <tr><td><code>overpass-api.de</code>, <code>maps.mail.ru</code>, <code>overpass.private.coffee</code></td><td>forêts et bâti OpenStreetMap</td></tr>
+            <tr><td><code>server.arcgisonline.com</code>, <code>tile.openstreetmap.org</code>, <code>tile.opentopomap.org</code></td><td>fonds de carte</td></tr>
+            <tr><td><code>cdnjs.cloudflare.com</code></td><td>Leaflet et Chart.js</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      <p>Sources : code source Meshtastic firmware et MeshCore (GitHub), Semtech AN1200.22, ETSI EN 300 220, ITU-R P.526 (diffraction en lame de couteau et obstacle arrondi), P.2108 et P.833, IGN Géoplateforme RGE ALTI®, AWS Terrain Tiles (SRTM), OpenStreetMap (Overpass).</p>
+    </footer>
+  </main>
+</div>

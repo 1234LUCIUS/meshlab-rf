@@ -1,0 +1,12 @@
+{
+  "name": "meshlab-rf",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Simulateur de reseaux mailles LoRa Meshtastic / MeshCore (relief reel, vegetation, bilan de liaison)",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

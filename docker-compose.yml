@@ -1,0 +1,19 @@
+services:
+  meshlab-rf:
+    build: .
+    image: meshlab-rf
+    container_name: meshlab-rf
+    restart: unless-stopped
+    ports:
+      # Sur un serveur public, remplacer par l'adresse Tailscale de la machine :
+      #   - "100.x.y.z:8765:8765"
+      # Docker court-circuite ufw pour les ports publies : preciser l'adresse est
+      # le seul moyen fiable de ne pas exposer le service sur Internet.
+      - "8765:8765"
+    environment:
+      # QUIET: "1"        # pas de journal des requetes
+      # CSP: "off"        # desactive l'en-tete Content-Security-Policy
+      # OVERPASS: "off"   # desactive le relais OpenStreetMap /api/overpass
+      TRUST_PROXY: "1"    # derriere un reverse proxy : lit l'adresse reelle du visiteur
+      # ACCESS_LOG: "/var/log/meshlab/access.log"   # journal des acces dans un fichier
+      TZ: Europe/Paris

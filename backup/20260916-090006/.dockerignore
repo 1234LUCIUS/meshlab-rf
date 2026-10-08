@@ -1,0 +1,7 @@
+original/
+node_modules/
+.git/
+.claude/
+*.rar
+*.zip
+*.log
