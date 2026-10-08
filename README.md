@@ -62,16 +62,15 @@ Pas besoin d’être spécialiste radio pour commencer :
 
 Allez plus loin avec les réglages fins, les scénarios, le trafic, le terrain réel, les profils réglementaires, les bilans de liaison et l’analyse détaillée des paquets.
 
-## Télécharger et démarrer
+## Télécharger et démarrer — sans localhost
 
 1. **[Téléchargez la dernière version (.zip)](https://github.com/1234LUCIUS/meshlab-rf/releases/latest/download/meshlab-rf.zip)**.
 2. Décompressez l’archive.
-3. Lancez :
-   - **Windows :** `start.bat`
-   - **Linux / macOS :** `./start.sh`
-4. Ouvrez **[http://localhost:8765](http://localhost:8765)**.
+3. Ouvrez simplement **`index.html`** dans votre navigateur.
 
-> Prérequis : **Node.js 18 ou plus récent**. Aucun compte, aucune base de données et aucune dépendance npm à installer.
+> **C’est tout :** pas besoin de lancer un serveur, pas besoin d’ouvrir `localhost`, pas besoin d’installer npm. Le mode direct utilise les services cartographiques publics depuis votre navigateur.
+
+Pour un usage avancé ou un réseau avec relais Overpass local, `start.bat` et `start.sh` restent disponibles en option.
 
 ## Une décision plus rapide, avant le terrain
 
