@@ -1,51 +1,87 @@
 # MeshLab RF
 
-> **Nouveau simulateur haute performance pour réseaux radio LoRa.**
-> Meshtastic et MeshCore, testés sur une vraie carte avant le déploiement.
+## Le laboratoire radio LoRa dans votre navigateur
 
-**NOUVEAU** · **RAPIDE** · **LOCAL** · **SANS INSTALLATION npm**
+**MeshLab RF est le nouveau simulateur haute performance pour concevoir, tester et expliquer un réseau Meshtastic ou MeshCore avant de déplacer le moindre équipement.**
 
-Placez vos nœuds, lancez la simulation et comprenez immédiatement quelles liaisons fonctionnent.
+> **Placez vos nœuds. Lancez la simulation. Prenez une décision.**
 
-## Télécharger maintenant
+**NOUVEAU** · **RAPIDE** · **LOCAL** · **SANS COMPTE** · **MESHTASTIC + MESHCORE**
 
-**[Télécharger MeshLab RF (.zip)](https://github.com/1234LUCIUS/meshlab-rf/releases/latest/download/meshlab-rf.zip)**
+[**Télécharger MeshLab RF**](https://github.com/1234LUCIUS/meshlab-rf/releases/latest/download/meshlab-rf.zip) · [Voir la release](https://github.com/1234LUCIUS/meshlab-rf/releases/latest)
 
-## Démarrer en 3 étapes
+---
 
-1. Décompressez le fichier `.zip`.
-2. Lancez le fichier adapté à votre ordinateur :
-   - **Windows :** double-cliquez sur `start.bat`
-   - **Linux / macOS :** lancez `./start.sh`
-3. Ouvrez **[http://localhost:8765](http://localhost:8765)**.
+## Pourquoi l’utiliser ?
 
-> Il faut seulement **Node.js 18 ou plus récent**. Aucun compte, aucune base de données et aucune installation de dépendance npm ne sont nécessaires.
+Un réseau radio ne se juge pas seulement sur une carte théorique. **Le relief, les distances, les antennes, le bâti, la végétation, les collisions et le protocole changent le résultat.**
 
-## Pourquoi MeshLab RF est performant
+MeshLab RF vous permet de comparer rapidement plusieurs implantations et de comprendre ce qui se passe réellement :
 
-- **Calcul local dans votre navigateur** : l’interface reste réactive et vos scénarios restent sur votre machine.
-- **Moteur à événements discrets** : la simulation traite les émissions, relais, collisions et ACK de façon ciblée.
-- **Calcul géographique concentré autour des nœuds** : le relief, la végétation et le bâti ne sont pas téléchargés pour toute la carte.
-- **Cache des données géographiques** : les mêmes zones ne sont pas rechargées inutilement.
-- **Aucune dépendance à installer** : le démarrage est immédiat après l’installation de Node.js.
+- **où la liaison passe ;**
+- **où elle devient limite ;**
+- **quel nœud relaie ;**
+- **pourquoi un paquet est perdu ;**
+- **comment le protocole se comporte quand le réseau grandit.**
 
-## Ce que vous pouvez tester
+## Ce que vous obtenez
 
-- comparer **Meshtastic** et **MeshCore** ;
-- tester une implantation de nœuds avant une installation réelle ;
-- visualiser les liaisons radio, le relief, la végétation et le bâti ;
-- observer les messages, relais, collisions, pertes et accusés de réception ;
-- ajuster les antennes, la puissance, la fréquence et les paramètres radio ;
-- analyser les résultats dans le Dashboard et le bilan détaillé des liaisons.
+| Besoin | Réponse MeshLab RF |
+|---|---|
+| Préparer une installation | Testez les emplacements et les hauteurs d’antenne sur une carte réelle. |
+| Choisir un protocole | Comparez Meshtastic et MeshCore dans le même environnement. |
+| Trouver les points faibles | Visualisez les liaisons bonnes, limites ou impossibles. |
+| Expliquer une décision | Montrez le bilan détaillé d’une liaison, d’un paquet ou d’un relais. |
+| Tester la montée en charge | Générez des scénarios, du trafic, des collisions et des pertes. |
+| Gagner du temps | Lancez l’outil localement, sans compte et sans installation npm. |
 
-## Pour commencer
+## Les points forts
 
-- **Débutant :** choisissez un protocole, ajoutez quelques nœuds sur la carte et lancez une simulation.
-- **Professionnel :** utilisez les paramètres radio, le terrain, le trafic, les scénarios et le Dashboard.
+### Une simulation qui ne se contente pas de dessiner des points
 
-## Liens
+- **Relief réel** avec source IGN en France et repli SRTM mondial.
+- **Végétation et bâti** pris en compte dans le bilan de liaison.
+- **Paramètres radio** : fréquence, puissance, gain d’antenne, SF, bande passante et coding rate.
+- **Comportements protocolaires** : relais, flood, ACK, retransmissions, adverts, hop limit et duty cycle.
+- **Moteur à événements discrets** pour suivre les émissions, relais, collisions et livraisons.
+- **Calculs ciblés autour des nœuds** et cache géographique pour éviter les téléchargements inutiles.
+- **Dashboard, journal et inspecteurs** pour passer de la vue globale au diagnostic précis.
 
-- [Dernière version téléchargeable](https://github.com/1234LUCIUS/meshlab-rf/releases/latest)
+## Pour qui ?
+
+### Pour les débutants
+
+Pas besoin d’être spécialiste radio pour commencer :
+
+1. choisissez **Meshtastic** ou **MeshCore** ;
+2. ajoutez quelques nœuds sur la carte ;
+3. lancez une simulation ;
+4. lisez les liaisons vertes, orange et rouges.
+
+### Pour les professionnels
+
+Allez plus loin avec les réglages fins, les scénarios, le trafic, le terrain réel, les profils réglementaires, les bilans de liaison et l’analyse détaillée des paquets.
+
+## Télécharger et démarrer
+
+1. **[Téléchargez la dernière version (.zip)](https://github.com/1234LUCIUS/meshlab-rf/releases/latest/download/meshlab-rf.zip)**.
+2. Décompressez l’archive.
+3. Lancez :
+   - **Windows :** `start.bat`
+   - **Linux / macOS :** `./start.sh`
+4. Ouvrez **[http://localhost:8765](http://localhost:8765)**.
+
+> Prérequis : **Node.js 18 ou plus récent**. Aucun compte, aucune base de données et aucune dépendance npm à installer.
+
+## Une décision plus rapide, avant le terrain
+
+MeshLab RF ne remplace pas une mesure terrain : il vous aide à **arriver sur le terrain avec une implantation déjà réfléchie**, à comparer vos hypothèses et à identifier les zones qui méritent une mesure réelle.
+
+[**Lancer le téléchargement**](https://github.com/1234LUCIUS/meshlab-rf/releases/latest/download/meshlab-rf.zip)
+
+## Ressources
+
+- [Dernière version](https://github.com/1234LUCIUS/meshlab-rf/releases/latest)
 - [Documentation technique](docs/technique.md)
 - [Historique des versions](https://github.com/1234LUCIUS/meshlab-rf/releases)
 
