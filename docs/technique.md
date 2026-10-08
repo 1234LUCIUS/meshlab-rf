@@ -380,3 +380,8 @@ l'interface affiche « stockage plein » au lieu d'échouer en silence.
 | `server.js` | serveur web statique |
 | `cr.html` | compte rendu technique du projet |
 | `original/` | version d'origine, non servie |
+
+
+## Performances et architecture
+
+MeshLab RF utilise un moteur à événements discrets côté navigateur. Les calculs de liaison sont réalisés à la demande autour des nœuds actifs ; les données de relief et d’occupation du sol sont mises en cache afin d’éviter les téléchargements répétitifs. Les résultats de performance dépendent du nombre de nœuds, de la zone simulée et de l’ordinateur utilisé : l’outil privilégie donc des calculs ciblés plutôt qu’un traitement inutile de toute la carte.
