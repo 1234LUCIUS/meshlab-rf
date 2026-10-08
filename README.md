@@ -84,6 +84,8 @@ MeshLab RF ne remplace pas une mesure terrain : il vous aide à **arriver sur le
 - [Documentation technique](docs/technique.md)
 - [Historique des versions](https://github.com/1234LUCIUS/meshlab-rf/releases)
 
-## Licence
+## Statut du projet
 
-Projet privé — réservé aux utilisateurs autorisés du dépôt.
+MeshLab RF est désormais disponible dans un **dépôt GitHub public**. Vous pouvez consulter le code, télécharger la dernière version et suivre les évolutions du projet.
+
+Pour contribuer ou proposer une amélioration, utilisez les [Issues GitHub](https://github.com/1234LUCIUS/meshlab-rf/issues).
