@@ -4,6 +4,20 @@ Simulateur Meshtastic / MeshCore avec relief réel, végétation, bilan de liais
 détaillé des réceptions. Tout tourne dans le navigateur : le serveur ne fait que distribuer
 les fichiers.
 
+## Téléchargement rapide
+
+- **[Télécharger la dernière version (.zip)](https://github.com/1234LUCIUS/meshlab-rf/releases/latest/download/meshlab-rf.zip)**
+- **[Voir les versions GitHub](https://github.com/1234LUCIUS/meshlab-rf/releases)**
+
+### Démarrage
+
+1. Décompressez `meshlab-rf.zip`.
+2. **Windows :** double-cliquez sur `start.bat`.
+3. **Linux / macOS :** lancez `./start.sh`.
+4. Ouvrez [http://localhost:8765](http://localhost:8765).
+
+Aucune installation de dépendance npm n’est nécessaire. Il faut seulement **Node.js 18 ou plus récent**.
+
 ## Lancer en local
 
 ```bash
