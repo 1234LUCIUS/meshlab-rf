@@ -221,6 +221,7 @@ function drawNode(n){
     if(ui.selectedA===n.id || ui.selectedB===n.id) renderRightPanel();
   });
   ui.markers.set(n.id,m);
+  if(window.MeshLabRFPlugins?.enabled('node-labels')) m.openTooltip();
 }
 function markerEl(id){ const m=ui.markers.get(id); const el=m&&m.getElement(); return el?el.querySelector('.node-marker'):null; }
 function refreshMarker(n){ const m=ui.markers.get(n.id); if(m){ m.setIcon(nodeIcon(n)); } highlightSelection(); }
@@ -1694,4 +1695,152 @@ function boot(){
   workspaceBoot();                 // réseau précédent restauré, enregistrement automatique armé
   requestAnimationFrame(t=>{ ui.lastT=t; requestAnimationFrame(frame); });
 }
+
+/* ---------------- Import GPX + plugins intégrés ---------------- */
+(function initMeshLabRFExtensions(){
+  const $x = id => document.getElementById(id);
+  const pluginStoreKey = 'meshlabrf.plugins.v1';
+  const state = {gpx:[], fileName:'', plugins:{}};
+  try { state.plugins = JSON.parse(localStorage.getItem(pluginStoreKey)||'{}') || {}; } catch(_){}
+  const registry = new Map();
+  const api = {
+    register(plugin){
+      if(!plugin || typeof plugin.id!=='string' || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(plugin.id) ||
+         typeof plugin.title!=='string' || typeof plugin.description!=='string' || typeof plugin.apply!=='function')
+        throw new TypeError('Plugin invalide : id, title, description et apply() sont requis.');
+      if(registry.has(plugin.id)) throw new Error('Identifiant de plugin déjà utilisé : '+plugin.id);
+      registry.set(plugin.id, plugin);
+      if(!(plugin.id in state.plugins)) state.plugins[plugin.id] = plugin.defaultEnabled !== false;
+    },
+    enabled(id){ return !!state.plugins[id]; },
+    setEnabled(id, enabled){
+      const p=registry.get(id); if(!p) return false;
+      state.plugins[id]=!!enabled;
+      try{ localStorage.setItem(pluginStoreKey,JSON.stringify(state.plugins)); }catch(_){}
+      p.apply(!!enabled, api);
+      renderPlugins();
+      return true;
+    },
+    list(){ return [...registry.values()].map(p=>({id:p.id,title:p.title,description:p.description,enabled:!!state.plugins[p.id]})); }
+  };
+  window.MeshLabRFPlugins = api;
+
+  api.register({id:'node-labels',title:'Noms des nœuds en permanence',description:'Affiche le nom de chaque nœud sur la carte, sans devoir le survoler.',defaultEnabled:false,apply(enabled){
+    if(!ui || !ui.markers) return;
+    sim.nodes.forEach(n=>{const m=ui.markers.get(n.id); if(!m)return; if(enabled)m.openTooltip();else m.closeTooltip();});
+  }});
+  api.register({id:'radio-links',title:'Liaisons radio visibles',description:'Active ou masque la couche des liaisons estimées entre les nœuds.',defaultEnabled:true,apply(enabled){
+    if(ui.map && ui.layers.radio){ if(enabled && !ui.map.hasLayer(ui.layers.radio))ui.layers.radio.addTo(ui.map); if(!enabled && ui.map.hasLayer(ui.layers.radio))ui.map.removeLayer(ui.layers.radio); }
+  }});
+  api.register({id:'place-labels',title:'Noms des villes et lieux',description:'Active ou masque les libellés géographiques.',defaultEnabled:true,apply(enabled){
+    if(ui.map && ui.layers.labels){ if(enabled && !ui.map.hasLayer(ui.layers.labels))ui.layers.labels.addTo(ui.map); if(!enabled && ui.map.hasLayer(ui.layers.labels))ui.map.removeLayer(ui.layers.labels); }
+  }});
+  api.register({id:'gpx-radio-parameters',title:'Paramètres radio personnalisés à l’import GPX',description:'Active les champs de puissance d’émission et de gain d’antenne pour les nœuds importés.',defaultEnabled:false,apply(enabled){
+    const panel=document.getElementById('mlrfGpxAdvanced'); if(panel) panel.hidden=!enabled;
+  }});
+  api.register({id:'osm-cover',title:'Végétation et bâti (OSM)',description:'Affiche la couche de couverture du sol, lorsqu’elle est disponible.',defaultEnabled:false,apply(enabled){
+    if(ui.map && ui.layers.cover){ if(enabled && !ui.map.hasLayer(ui.layers.cover))ui.layers.cover.addTo(ui.map); if(!enabled && ui.map.hasLayer(ui.layers.cover))ui.map.removeLayer(ui.layers.cover); ui.geo.showCover=enabled; }
+  }});
+
+  function open(tab){
+    $x('mlrfToolsModal').hidden=false;
+    setTab(tab||'gpx');
+    renderPlugins();
+    if(tab==='plugins') $x('mlrfToolsTitle').textContent='Plugins & affichage';
+    else $x('mlrfToolsTitle').textContent='Importer des nœuds GPX';
+  }
+  function close(){ $x('mlrfToolsModal').hidden=true; }
+  function setTab(tab){
+    document.querySelectorAll('[data-tool-tab]').forEach(b=>b.classList.toggle('active',b.dataset.toolTab===tab));
+    $x('mlrfGpxPane').hidden=tab!=='gpx'; $x('mlrfPluginsPane').hidden=tab!=='plugins';
+    $x('mlrfToolsTitle').textContent=tab==='gpx'?'Importer des nœuds GPX':'Plugins & affichage';
+  }
+  function renderPlugins(){
+    const host=$x('mlrfPluginList'); if(!host)return;
+    host.innerHTML='';
+    for(const p of api.list()){
+      const row=document.createElement('label'); row.className='mlrf-plugin';
+      const input=document.createElement('input'); input.type='checkbox'; input.checked=p.enabled;
+      input.addEventListener('change',()=>api.setEnabled(p.id,input.checked));
+      const content=document.createElement('span');
+      const title=document.createElement('strong'); title.textContent=p.title;
+      const desc=document.createElement('small'); desc.textContent=p.description;
+      content.append(title,desc); row.append(input,content); host.append(row);
+    }
+  }
+  function parseGpx(text){
+    if(text.length>15*1024*1024) throw new Error('Fichier trop volumineux (limite : 15 Mo).');
+    const xml=new DOMParser().parseFromString(text,'application/xml');
+    if(xml.querySelector('parsererror')) throw new Error('Le fichier XML/GPX est invalide.');
+    if(!xml.documentElement || xml.documentElement.localName.toLowerCase()!=='gpx') throw new Error('Ce fichier ne semble pas être un GPX.');
+    const pts=[];
+    xml.querySelectorAll('wpt, trkpt, rtept').forEach((el,i)=>{
+      const lat=Number(el.getAttribute('lat')), lng=Number(el.getAttribute('lon'));
+      if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return;
+      const name=(el.querySelector('name')?.textContent||`Nœud GPX ${i+1}`).trim().replace(/\s+/g,' ').slice(0,100);
+      pts.push({lat,lng,label:name||`Nœud GPX ${i+1}`});
+    });
+    if(!pts.length) throw new Error('Aucun waypoint, point de trace ou point de route valide trouvé.');
+    if(pts.length>5000) throw new Error('Le GPX contient plus de 5 000 points ; découpez-le en plusieurs fichiers.');
+    return pts;
+  }
+  $x('btnImportGpx')?.addEventListener('click',()=>open('gpx'));
+  $x('btnPlugins')?.addEventListener('click',()=>open('plugins'));
+  $x('mlrfToolsClose')?.addEventListener('click',close);
+  $x('mlrfToolsModal')?.addEventListener('click',e=>{if(e.target===$x('mlrfToolsModal'))close();});
+  document.querySelectorAll('[data-tool-tab]').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.toolTab)));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape' && !$x('mlrfToolsModal').hidden)close();});
+
+  $x('mlrfGpxFile')?.addEventListener('change',async e=>{
+    state.gpx=[]; state.fileName=''; $x('mlrfGpxImport').disabled=true;
+    const file=e.target.files?.[0]; if(!file){$x('mlrfGpxSummary').textContent='Sélectionnez un fichier GPX pour analyser ses points.';return;}
+    try{
+      const pts=parseGpx(await file.text()); state.gpx=pts;state.fileName=file.name;
+      $x('mlrfGpxSummary').textContent=`${file.name} : ${pts.length} point(s) détecté(s). Import prêt.`;
+      $x('mlrfGpxImport').disabled=false;
+    }catch(err){$x('mlrfGpxSummary').textContent=err.message;}
+  });
+  $x('mlrfGpxImport')?.addEventListener('click',()=>{
+    if(!state.gpx.length)return;
+    const role=$x('mlrfGpxRole').value;
+    const height=Number($x('mlrfGpxHeight').value);
+    if(!Number.isFinite(height)||height<0.5||height>300){$x('mlrfToolsStatus').textContent='La hauteur doit être comprise entre 0,5 et 300 mètres.';return;}
+    const skip=$x('mlrfGpxSkipDuplicates').checked;
+    const seen=sim.nodes.slice();
+    let added=0, duplicates=0;
+    const remaining=Math.max(0,5000-sim.nodes.length);
+    for(const p of state.gpx.slice(0,remaining)){
+      const dup=skip && seen.some(n=>n.label.toLocaleLowerCase()===p.label.toLocaleLowerCase() || Geo.distanceM(n,p)<8);
+      if(dup){duplicates++;continue;}
+      const opts={label:p.label,role,heightM:height};
+      if(state.plugins['gpx-radio-parameters']){
+        const power=Number($x('mlrfGpxPower').value), gain=Number($x('mlrfGpxGain').value);
+        if(!Number.isFinite(power)||power< -20||power>40||!Number.isFinite(gain)||gain< -10||gain>30){
+          $x('mlrfToolsStatus').textContent='Puissance : −20 à 40 dBm ; gain : −10 à 30 dBi.'; return;
+        }
+        opts.txPowerDbm=power; opts.antGainDbi=gain;
+      }
+      const n=sim.addNode(p.lat,p.lng,opts);
+      drawNode(n); seen.push(n); added++;
+    }
+    afterTopologyChange();
+    if(added){
+      const bounds=L.latLngBounds(state.gpx.map(p=>[p.lat,p.lng]));
+      if(bounds.isValid()) ui.map.fitBounds(bounds.pad(.08),{maxZoom:14});
+      if(state.plugins['node-labels']) sim.nodes.forEach(n=>ui.markers.get(n.id)?.openTooltip());
+    }
+    $x('mlrfToolsStatus').textContent=`Import terminé : ${added} nœud(s) ajouté(s), ${duplicates} doublon(s) ignoré(s).${state.gpx.length>remaining?' Limite de 5 000 nœuds atteinte.':''}`;
+    renderLeftPanel(); renderRightPanel(); renderMapOverlay(); renderMapLegend();
+  });
+
+  // Appliquer les réglages enregistrés après l'initialisation de la carte.
+  const applyWhenReady=()=>{
+    if(!ui.map || !ui.layers || !ui.markers){requestAnimationFrame(applyWhenReady);return;}
+    for(const p of registry.values()) p.apply(!!state.plugins[p.id],api);
+    renderPlugins();
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>requestAnimationFrame(applyWhenReady),{once:true});
+  else requestAnimationFrame(applyWhenReady);
+})();
+
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();

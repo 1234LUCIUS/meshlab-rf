@@ -422,6 +422,33 @@ table.cmp tr td:nth-child(3){color:var(--violet);width:40.5%;}
   .main{grid-template-columns:200px 1fr 0;}
   .right{display:none;}
 }
+
+/* Import GPX et système de plugins */
+.mlrf-modal[hidden]{display:none!important}
+.mlrf-modal{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.72);display:grid;place-items:center;padding:18px}
+.mlrf-modal-card{position:relative;width:min(640px,100%);max-height:min(86vh,850px);overflow:auto;background:var(--bg-0);color:var(--text-0);border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:0 20px 80px #0009}
+.mlrf-modal-card h2{margin:8px 0 16px;font-size:24px}
+.mlrf-modal-card p{color:var(--text-1);font-size:12px;line-height:1.6}
+.mlrf-modal-close{position:absolute;right:14px;top:12px;border:1px solid var(--line);background:var(--bg-2);color:var(--text-0);font-size:24px;border-radius:8px;width:36px;height:36px;cursor:pointer}
+.mlrf-eyebrow{font:10px var(--mono);letter-spacing:.12em;color:var(--cyan)}
+.mlrf-tool-tabs{display:flex;gap:8px;margin:12px 0 18px;flex-wrap:wrap}
+.mlrf-tool-tabs button,.mlrf-primary{border:1px solid var(--line);border-radius:8px;padding:10px 13px;background:var(--bg-2);color:var(--text-0);cursor:pointer;font:inherit;font-size:12px}
+.mlrf-tool-tabs button.active,.mlrf-primary{background:var(--cyan);color:#061219;border-color:var(--cyan);font-weight:700}
+.mlrf-primary{width:100%;margin-top:14px}
+.mlrf-primary:disabled{opacity:.4;cursor:not-allowed}
+.mlrf-field{display:grid;gap:6px;font-size:11px;color:var(--text-1);margin:12px 0}
+.mlrf-field input,.mlrf-field select{width:100%;min-width:0;background:var(--bg-1);color:var(--text-0);border:1px solid var(--line);border-radius:7px;padding:10px;font:inherit}
+.mlrf-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mlrf-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-1);margin:12px 0}
+.mlrf-help,.mlrf-status{padding:10px 12px;background:var(--bg-1);border:1px solid var(--line);border-radius:8px;color:var(--text-1);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.mlrf-status:empty{display:none}
+.mlrf-plugin{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.mlrf-plugin input{margin-top:3px;accent-color:var(--cyan)}
+.mlrf-plugin strong{display:block;font-size:12px;color:var(--text-0)}
+.mlrf-plugin small{display:block;color:var(--text-2);font-size:11px;line-height:1.5;margin-top:3px}
+.mlrf-plugin-note{margin-top:16px;font-size:11px;color:var(--text-2);line-height:1.6}
+@media(max-width:700px){.mlrf-modal-card{padding:18px}.mlrf-grid{grid-template-columns:1fr}.mlrf-modal{padding:8px}}
+
 </style>
 </head>
 <body>
@@ -444,6 +471,8 @@ table.cmp tr td:nth-child(3){color:var(--violet);width:40.5%;}
     </div>
     <div class="pillbtn" id="btnPedago">🎓 Mode pédagogique</div>
     <div class="pillbtn" id="btnExpert">🔬 Mode expert</div>
+    <div class="pillbtn" id="btnImportGpx">📍 Importer GPX</div>
+    <div class="pillbtn" id="btnPlugins">🧩 Plugins</div>
   </div>
 
   <!-- MAIN -->
@@ -480,6 +509,52 @@ table.cmp tr td:nth-child(3){color:var(--violet);width:40.5%;}
   </div>
 
 </div>
+
+  <!-- Import GPX + plugins -->
+  <div id="mlrfToolsModal" class="mlrf-modal" hidden role="dialog" aria-modal="true" aria-labelledby="mlrfToolsTitle">
+    <div class="mlrf-modal-card">
+      <button type="button" class="mlrf-modal-close" id="mlrfToolsClose" aria-label="Fermer">×</button>
+      <div class="mlrf-eyebrow">MESHLAB RF / EXTENSIONS</div>
+      <h2 id="mlrfToolsTitle">Outils</h2>
+      <div class="mlrf-tool-tabs">
+        <button type="button" data-tool-tab="gpx" class="active">Importer des nœuds GPX</button>
+        <button type="button" data-tool-tab="plugins">Plugins & affichage</button>
+      </div>
+      <section id="mlrfGpxPane">
+        <p>Importe les points GPX comme nœuds préexistants. Les noms et coordonnées sont conservés ; les paramètres radio utilisent le profil sélectionné.</p>
+        <label class="mlrf-field">Fichier GPX <input type="file" id="mlrfGpxFile" accept=".gpx,application/gpx+xml,application/xml,text/xml"></label>
+        <div class="mlrf-grid">
+          <label class="mlrf-field">Rôle des nœuds importés
+            <select id="mlrfGpxRole"><option value="client">Client</option><option value="router">Routeur</option><option value="repeater">Répéteur</option></select>
+          </label>
+          <label class="mlrf-field">Hauteur d’antenne (m)
+            <input type="number" id="mlrfGpxHeight" min="0.5" max="300" step="0.5" value="2.5">
+          </label>
+        </div>
+        <div id="mlrfGpxAdvanced" hidden>
+          <div class="mlrf-grid">
+            <label class="mlrf-field">Puissance d’émission (dBm)
+              <input type="number" id="mlrfGpxPower" min="-20" max="40" step="0.5" value="17">
+            </label>
+            <label class="mlrf-field">Gain d’antenne (dBi)
+              <input type="number" id="mlrfGpxGain" min="-10" max="30" step="0.5" value="2.15">
+            </label>
+          </div>
+          <div class="mlrf-help">Ces valeurs remplacent celles du profil de rôle pour tous les nœuds importés.</div>
+        </div>
+        <label class="mlrf-check"><input type="checkbox" id="mlrfGpxSkipDuplicates" checked> Ignorer les doublons (même nom ou coordonnées très proches)</label>
+        <div class="mlrf-help" id="mlrfGpxSummary">Sélectionnez un fichier GPX pour analyser ses points.</div>
+        <button type="button" class="mlrf-primary" id="mlrfGpxImport" disabled>Importer les nœuds</button>
+      </section>
+      <section id="mlrfPluginsPane" hidden>
+        <p>Les plugins intégrés activent des couches ou des options de configuration. Ils sont désactivables sans modifier le moteur de simulation.</p>
+        <div id="mlrfPluginList"></div>
+        <div class="mlrf-plugin-note">API d’extension : <code>window.MeshLabRFPlugins.register(plugin)</code>. Les plugins doivent être du code de confiance ; ne chargez pas de scripts inconnus.</div>
+      </section>
+      <div class="mlrf-status" id="mlrfToolsStatus" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
 <script src="geo.js"></script>
 <script src="engine.js"></script>
 <script src="workspace.js"></script>
